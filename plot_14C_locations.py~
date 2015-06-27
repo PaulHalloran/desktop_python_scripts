@@ -1,0 +1,10 @@
+import matplotlib.pyplot as plt
+import numpy as np
+
+c14_timeseries = {}
+c14_timeseries['ref'] = ['Druffel, 1989','Druffel and Suess, 1983','Nozakui et al., 1978','Druffel, 1996','Toggweiler et al., 1991',]
+c14_timeseries['creature'] = ['coral','coral','coral','coral','coral',]
+c14_timeseries['lat'] = np.array([24.57,15.0,32.0,-17.3,12.0,])
+c14_timeseries['lon'] = np.array([-80.33,-85.0,-64.0,-39.2,42.0,])
+c14_timeseries['start_date'] = np.array([1900,1850,1770,1950,])
+c14_timeseries['end_date'] = np.array([1952,1983,1976,1982,])

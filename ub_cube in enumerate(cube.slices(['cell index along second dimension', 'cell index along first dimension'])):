@@ -1,0 +1,32 @@
+Help on method num2date in module iris.unit:
+
+nnuumm22ddaattee(self, time_value) method of iris.unit.Unit instance
+    Returns a datetime-like object calculated from the numeric time value using the
+    current calendar and the unit time reference.
+    
+    The current unit time reference must be of the form: '<time-unit> since <time-origin>'
+    i.e. 'hours since 1970-01-01 00:00:00'
+    
+    The datetime objects returned are 'real' Python datetime objects if the date falls in the
+    Gregorian calendar (i.e. the calendar is 'standard', 'gregorian', or 'proleptic_gregorian'
+    and the date is after 1582-10-15). Otherwise a 'phoney' datetime-like object (netcdftime.datetime)
+    is returned which can handle dates that don't exist in the Proleptic Gregorian calendar.
+    
+    Works for scalars, sequences and numpy arrays. Returns a scalar if input is a scalar,
+    else returns a numpy array.
+    
+    Args:
+    
+    * time_value (float): Numeric time value/s. Maximum resolution is 1 second.
+    
+    Returns:
+        datetime, or numpy.ndarray of datetime object.
+    
+    For example:
+    
+        >>> import iris.unit as unit
+        >>> u = unit.Unit('hours since 1970-01-01 00:00:00', calendar=unit.CALENDAR_STANDARD)
+        >>> u.num2date(6)
+        datetime.datetime(1970, 1, 1, 6, 0)
+        >>> u.num2date([6, 7])
+        array([1970-01-01 06:00:00, 1970-01-01 07:00:00], dtype=object)

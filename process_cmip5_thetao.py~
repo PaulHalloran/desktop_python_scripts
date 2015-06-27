@@ -1,0 +1,14 @@
+import glob
+import numpy as np
+import iris
+import matplotlib.pyplot as plt
+
+files = glob.glob('/media/usb_external1/cmip5/thetao/regridded/*.nc')
+
+starts = []
+ends = []
+
+for file in files:
+    cube= iris.load_cube(file)
+    start.append(cube[0:20].collapsed('longitude'))
+    ends.append(cube[-20:-1].collapsed('longitude'))

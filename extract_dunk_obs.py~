@@ -1,0 +1,4 @@
+import glob
+
+files = glob.glob('/home/ph290/data0/dunkerswell_obs/*')
+

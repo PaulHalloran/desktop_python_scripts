@@ -1,0 +1,195 @@
+import iris
+import matplotlib.pyplot as plt
+import glob
+import numpy as np
+import time
+import numpy as np
+import glob
+import iris
+import iris.coord_categorisation
+import iris.analysis
+import subprocess
+import os
+import uuid
+import iris.quickplot as qplt
+import cartopy
+from iris.analysis.geometry import geometry_area_weights
+from cartopy.io.shapereader import Reader, natural_earth
+from shapely.ops import cascaded_union
+
+def unique_models(all_files):
+    model = []
+    for file in all_files:
+        model.append(file.split('/')[8])
+    return np.unique(np.array(model))
+
+
+'''
+EDIT THE FOLLOWING TEXT
+'''
+#the lcoation of some temporart disk space that can be used for the processing. You'll want to point to an area with plenty of free space (Many Gbs)
+temporary_file_space = '/home/ph290/data0/tmp/'
+#Directory containing the datasets you want to process onto a simply grid
+input_directory = '/home/ph290/data0/ocmip/dods.ipsl.jussieu.fr/ocmip/phase2/'
+#Directory where you want to put the processed data. Make sure you have the correct file permissions to write here (e.g. test hat you can make a text file there). Also make sure that you have enough space to save the files (the saved files will probably be of a similar size to what they were before processing).
+output_directory = '/media/usb_external1/ocmip2/c14/'
+#comma separated list of the CMIP5 experiments that you want to process (e.g. 'historical','rcp85' etc.). Names must be as they are referencedwritted in the filename as downloaded from CMIP5
+#comma separated list of the CMIP5 variables that you want to process (e.g. 'tos','fgco2' etc.)
+variables = np.array(['DC14s'])
+#specify the temperal averaging period of the data in your files e.g for an ocean file 'Omon' (Ocean monthly) or 'Oyr' (ocean yearly). Atmosphere would be comething like 'Amon'. Note this just prevents probvlems if you accidently did not specify the time frequency when doenloading the data, so avoids trying to puut (e.g.) daily data and monthly data in the same file.
+resolution = 5 #degrees (for regridding - not low resolution of OCMIP2 models)
+
+'''
+Main bit of code follows...
+'''
+
+all_files = glob.glob('/home/ph290/data0/ocmip/dods.ipsl.jussieu.fr/ocmip/phase2/*/Abiotic/hist/*.nc')
+
+
+models = unique_models(all_files)
+
+print 'models to process: '
+for model in models:
+    print model
+
+
+print '****************************************'
+print '** this can take a long time (days)   **'
+print '** grab a cuppa, but keep an eye on   **'
+print '** this to make sure it does not fail **'
+print '****************************************'
+
+print 'Processing data from: '+ input_directory
+#This runs the function above to come up with a list of models from the filenames
+
+#Looping through each model we have
+for model in models:
+    files_1 = glob.glob(input_directory+'*'+model+'*/Abiotic/hist/*_2D.nc')
+    for i,var in enumerate(variables):
+        tmp = glob.glob(output_directory+model+'_'+variables[i]+'_regridded'+'*'+'.nc')
+        temp_file1 = str(uuid.uuid4())+'.nc'
+        temp_file2 = str(uuid.uuid4())+'.nc'
+        temp_file3 = str(uuid.uuid4())+'.nc'			
+        temp_file4 = str(uuid.uuid4())+'.nc'
+        if np.size(tmp) == 0:
+            #reads in the files to process
+            print 'reading in: '+var+' '+' '+model
+            sizing = np.size(files_1)
+            #checks that we have some files to work with for this model, experiment and variable
+            if not sizing == 0:
+                if sizing > 1:
+                #if the data is split across more than one file, it is combined into a single file for ease of processing
+					files = ' '.join(files_1)
+					print 'merging files'
+					#merge together different files from the same experiment
+					subprocess.call(['cdo -P 6 mergetime '+files+' '+temporary_file_space+temp_file1], shell=True)
+					if sizing == 1:
+						print 'no need to merge - only one file present'
+						subprocess.call(['cp '+files[0]+' '+temporary_file_space+temp_file1], shell=True)
+
+					print 'merging months to years'
+					subprocess.call('cdo -P 6 yearmean '+temporary_file_space+temp_file1+' '+temporary_file_space+temp_file2, shell=True)
+					subprocess.call('rm '+temporary_file_space+temp_file1, shell=True)
+
+					#nearest neighbour regridding into iris cubes
+					print 'nearest neighbour regridding into iris cubes'
+
+					d14c_cube = iris.load_cube(temporary_file_space+temp_file2,'Surface Delta C-14')
+					dpco2_cube = iris.load_cube(temporary_file_space+temp_file2,'Delta pCO2')
+
+					grid_lat = iris.load_cube('/data/data0/ph290/ocmip/dods.ipsl.jussieu.fr/ocmip/grids/'+model+'_grid.nc','Latitude')
+					grid_lon = iris.load_cube('/data/data0/ph290/ocmip/dods.ipsl.jussieu.fr/ocmip/grids/'+model+'_grid.nc','Longitude')
+					grid_mask = iris.load_cube('/data/data0/ph290/ocmip/dods.ipsl.jussieu.fr/ocmip/grids/'+model+'_grid.nc','Mask Land/Ocean')
+
+					time = iris.coords.DimCoord(range(0, d14c_cube.shape[0], 1), standard_name='time', units='seconds')
+					latitude = iris.coords.DimCoord(range(-90, 90, resolution), standard_name='latitude', units='degrees')
+					longitude = iris.coords.DimCoord(range(-180, 180, resolution), standard_name='longitude', units='degrees')
+					new_d14c_cube = iris.cube.Cube(np.ma.zeros((d14c_cube.shape[0],180/resolution, 360/resolution), np.float32),standard_name='sea_surface_temperature', long_name='Sea Surface Temperature', var_name='tos', units='K',dim_coords_and_dims=[(time,0), (latitude, 1), (longitude, 2)])
+					new_dpco2_cube = new_d14c_cube.copy()
+
+					test = d14c_cube.shape[2] >= 600
+					if test:
+						ocmip_lats = grid_lat.data[0]
+						ocmip_lons = grid_lon.data[0]
+					else:
+						ocmip_lats = grid_lat.data
+						ocmip_lons = grid_lon.data                  
+
+					theory_lats = range(-90, 90, resolution)
+					theory_lons = range(-180, 180, resolution)
+
+					d14c_data_for_cube = np.zeros([d14c_cube.shape[0],180/resolution,360/resolution])
+					d14c_data_for_cube = np.ma.masked_array(d14c_data_for_cube, mask=[d14c_data_for_cube+1])
+					dpco2_data_for_cube = d14c_data_for_cube.copy()
+
+
+                                        if np.max(ocmip_lons) > 340:
+                                            ocmip_lons -= 180.0
+
+                                        if np.max(ocmip_lats) > 170:
+                                            ocmip_lats -= 90.0
+
+                                        for yr in range(d14c_cube.shape[0]):
+                                            print 'processing year: '+np.str(yr)
+                                            for i,lat_tmp in enumerate(theory_lats):
+                                                    for j,lon_tmp in enumerate(theory_lons):
+                                                            if test:
+                                                                    loc = np.where((ocmip_lats >= lat_tmp) & (ocmip_lats < lat_tmp+resolution) & (ocmip_lons >= lon_tmp) & (ocmip_lons < lon_tmp)+resolution)
+                                                                    d14c_data_for_cube[yr,i,j] = np.ma.mean(d14c_cube.data[yr][0][loc[0]])
+                                                                    dpco2_data_for_cube[yr,i,j] = np.ma.mean(dpco2_cube.data[yr][0][loc[0]])
+                                                            else:
+                                                                    loc = np.where((ocmip_lats >= lat_tmp) & (ocmip_lats < lat_tmp+resolution) & (ocmip_lons >= lon_tmp) & (ocmip_lons < lon_tmp+resolution))
+                                                                    if (np.size(loc1) > 0) & (np.size(loc2) > 0):
+                                                                            d14c_data_for_cube[yr,i,j] = np.ma.mean(d14c_cube.data[yr,loc[0],loc[1]])
+                                                                            dpco2_data_for_cube[yr,i,j] = np.ma.mean(dpco2_cube.data[yr,loc[0],loc[1]])
+
+
+					new_d14c_cube.data = d14c_data_for_cube
+					new_dpco2_cube.data = dpco2_data_for_cube
+					new_d14c_cube.coord('time').points = (d14c_cube.coord('time').points-11)/100
+					new_dpco2_cube.coord('time').points = (d14c_cube.coord('time').points-11)/100
+					new_d14c_cube.long_name = d14c_cube.long_name
+					new_dpco2_cube.long_name = dpco2_cube.long_name
+					new_d14c_cube.standard_name = d14c_cube.standard_name
+					new_dpco2_cube.standard_name = dpco2_cube.standard_name
+					new_d14c_cube.units = d14c_cube.units
+					new_dpco2_cube.units = dpco2_cube.units
+					new_d14c_cube.var_name = d14c_cube.var_name
+					new_dpco2_cube.var_name = dpco2_cube.var_name
+
+					shpfilename = natural_earth(resolution='110m', category='physical', name='land')
+					reader = Reader(shpfilename)
+					continents = reader.records()
+
+					new_d14c_cube.coord('latitude').guess_bounds()
+					new_d14c_cube.coord('longitude').guess_bounds()
+					new_dpco2_cube.coord('latitude').guess_bounds()
+					new_dpco2_cube.coord('longitude').guess_bounds()
+
+					continent_geometries = reader.geometries()  # NB. Switched from using records()
+					all_continents_geometry = cascaded_union(list(continent_geometries))
+					area_weights = geometry_area_weights(new_d14c_cube, all_continents_geometry)
+					land_mask = np.where(area_weights > 0, True, False)
+					new_d14c_cube.data = np.ma.array(new_d14c_cube.data, mask=land_mask)
+					area_weights = geometry_area_weights(new_dpco2_cube, all_continents_geometry)
+					land_mask = np.where(area_weights > 0, True, False)
+					new_dpco2_cube.data = np.ma.array(new_dpco2_cube.data, mask=land_mask)
+
+					iris.fileformats.netcdf.save(new_d14c_cube, output_directory+model+'_d14c_hist.nc')
+					iris.fileformats.netcdf.save(new_dpco2_cube, output_directory+model+'_dpco2_hist.nc')
+
+					subprocess.call('rm '+temporary_file_space+temp_file3, shell=True)
+            else:
+                print 'No variable input files for this model'
+        else:
+            print 'file already exists'	
+
+#cube_test = iris.load(temporary_file_space+temp_file2)
+
+
+#ax = plt.axes(projection=cartopy.crs.PlateCarree())
+#qplt.contourf(new_dpco2_cube[0],31)
+#plt.gca().coastlines()
+#ax.add_feature(cartopy.feature.LAND)
+#plt.show()
+

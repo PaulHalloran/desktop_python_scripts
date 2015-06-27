@@ -1,0 +1,324 @@
+from iris.coords import DimCoord
+import iris.plot as iplt
+import time
+import numpy as np
+import glob
+import iris
+import iris.coord_categorisation
+import iris.analysis
+import subprocess
+import os
+import iris.quickplot as qplt
+import matplotlib.pyplot as plt
+import numpy.ma as ma
+import running_mean as rm
+import running_mean_post as rmp
+from scipy import signal
+import scipy
+import scipy.stats
+import numpy as np
+import statsmodels.api as sm
+import running_mean_post
+from scipy.interpolate import interp1d
+from datetime import datetime, timedelta
+import cartopy.crs as ccrs
+import iris.analysis.cartography
+import numpy.ma as ma
+import scipy.interpolate
+import gc
+import pickle
+import biggus
+import seawater
+import cartopy.feature as cfeature
+import statsmodels.api as sm
+import iris.analysis.stats
+
+###
+#Filter
+###
+
+
+def butter_lowpass(lowcut, fs, order=5):
+    nyq = fs
+    low = lowcut/nyq
+    b, a = scipy.signal.butter(order, low , btype='high',analog = False)
+    return b, a
+    
+
+def butter_highpass(highcut, fs, order=5):
+    nyq = fs
+    high = highcut/nyq
+    b, a = scipy.signal.butter(order, high , btype='low',analog = False)
+    return b, a
+    
+
+b1, a1 = butter_lowpass(1.0/100.0, 1.0,2)
+b2, a2 = butter_lowpass(10.0/100.0, 1.0,2)
+
+def unique_models(directory,var):
+	models = []
+	files = glob.glob(directory+'/*_'+var+'_piControl*.nc')
+	for file in files:
+		models.append(file.split('/')[-1].split('_')[0])
+	return np.unique(models)
+
+
+
+strm_fun_dir = '/data/NAS-ph290/ph290/cmip5/msftmyz/piControl/'
+barotropic_dir = '/data/NAS-ph290/ph290/cmip5/reynolds_data/'
+tos_dir = '/data/NAS-ph290/ph290/cmip5/reynolds_data/'
+sos_dir = '/data/NAS-ph290/ph290/cmip5/reynolds_data/'
+uo_dir = '/media/usb_external1/cmip5/gulf_stream_analysis/regridded/'
+
+
+models1 = unique_models(strm_fun_dir,'msftmyz')
+models2 = unique_models(barotropic_dir,'msftbarot')
+models3 = unique_models(tos_dir,'tos')
+models4 = unique_models(sos_dir,'sos')
+models5 = unique_models(uo_dir,'uo')
+
+models = np.intersect1d(models1,models2)
+models = np.intersect1d(models,models3)
+models = np.intersect1d(models,models4)
+# models = np.intersect1d(models,models5)
+
+#main section
+
+def time_space_correlations(cube,timeseries,cube_year,ts_year): 
+	years = np.intersect1d(cube_year,ts_year)
+	ind1 = np.in1d(cube_year,years)
+	ind2 = np.in1d(ts_year,years)
+	cube1 = cube[ind1]
+	ts = timeseries[ind2]
+	time = iris.coords.DimCoord(range(0, np.size(ts), 1), standard_name='time', units='seconds')
+	latitude = iris.coords.DimCoord(range(-90, 90, 1), standard_name='latitude', units='degrees')
+	longitude = iris.coords.DimCoord(range(0, 360, 1), standard_name='longitude', units='degrees')
+	new_cube = iris.cube.Cube(np.zeros((np.size(ts),180, 360), np.float32),standard_name='sea_surface_temperature', long_name='Sea Surface Temperature', var_name='tos', units='K',dim_coords_and_dims=[(time,0), (latitude, 1), (longitude, 2)])
+	new_cube.data = cube1.data
+	analysis_cube = new_cube.copy()
+	analysis_cube = iris.analysis.maths.multiply(analysis_cube, 0.0)
+	ts2 = np.swapaxes(np.swapaxes(np.tile(ts,[analysis_cube.shape[1],analysis_cube.shape[2],1]),1,2),0,1)
+	analysis_cube = iris.analysis.maths.add(analysis_cube, ts2)
+	return iris.analysis.stats.pearsonr(new_cube, analysis_cube, corr_coords=[str(new_cube.coord(dimensions = 0).standard_name)])
+
+
+spg_west = -60
+spg_east = -10
+spg_south = 45
+spg_north = 65
+
+stg_west = -80
+stg_east = -10
+stg_south = 20
+stg_north = 40
+
+gs_west = -60
+gs_east = -50
+gs_south = 30
+gs_north = 45
+
+models = list(models)
+#removing duplicate models from an individual modelling centre
+models.remove('CNRM-CM5-2')
+models.remove('CESM1-CAM5')
+models.remove('CESM1-FASTCHEM')
+models.remove('CESM1-WACCM')
+models.remove('MPI-ESM-LR')
+models.remove('MPI-ESM-P')
+models.remove('NorESM1-ME')
+models = np.array(models)
+
+data = {}
+
+for model in models:
+	print model
+	data[model] = {}
+	###########################
+	#   AMOC                  #
+	###########################
+	cube = iris.load_cube(strm_fun_dir+model+'_msftmyz_piControl*.nc')
+	cube_atlantic=cube[:,0,:,:]
+	try:
+		cube_atlantic = cube_atlantic.intersection(latitude = (20, 60))
+	except:
+		cube_atlantic = cube_atlantic.intersection(grid_latitude = (20, 60))
+	moc=[]
+	for yz_slice in cube_atlantic.slices([str(cube_atlantic.coord(dimensions=1).standard_name),str(cube_atlantic.coord(dimensions=2).standard_name)]):
+		moc=np.append(moc,np.max(yz_slice.data))
+	data[model]['moc'] = moc
+	coord = cube.coord('time')
+	dt = coord.units.num2date(coord.points)
+	year = np.array([coord.units.num2date(value).year for value in coord.points])
+	data[model]['moc_year'] = year      
+	###########################
+	#       barotopic sf      #
+	###########################
+	cube = iris.load_cube(barotropic_dir+model+'_msftbarot_piControl*.nc')
+	cube1 = cube.intersection(longitude = (spg_west, spg_east))
+	cube1 = cube1.intersection(latitude = (spg_south, spg_north))
+	max_spg_baratropic_strength = np.abs(np.ma.min(np.ma.min(cube1.data,axis = 1),axis = 1))
+	data[model]['spg_barotropic'] = max_spg_baratropic_strength
+	cube1 = cube.intersection(longitude = (stg_west, stg_east))
+	cube1 = cube1.intersection(latitude = (stg_south, stg_north))
+	max_stg_baratropic_strength = np.abs(np.ma.max(np.ma.max(cube1.data,axis = 1),axis = 1))
+	data[model]['stg_barotropic'] = max_stg_baratropic_strength
+	coord = cube.coord('time')
+	dt = coord.units.num2date(coord.points)
+	year = np.array([coord.units.num2date(value).year for value in coord.points])
+	data[model]['barotropic_year'] = year   
+	###########################
+	#    eastward velocities  #
+	###########################
+# 	cube = iris.load_cube(uo_dir+model+'_uo_piControl*.nc')
+# 	cube = cube.intersection(longitude = (gs_west, gs_east))
+# 	cube = cube.intersection(latitude = (gs_south, gs_north))
+# 	max_gulf_stream_strength = np.abs(np.ma.max(np.ma.max(cube.data,axis = 1),axis = 1))
+# 	data[model]['gulf_stream_strength'] = max_gulf_stream_strength
+# 	coord = cube.coord('time')
+# 	dt = coord.units.num2date(coord.points)
+# 	year = np.array([coord.units.num2date(value).year for value in coord.points])
+# 	data[model]['gulf_stream_year'] = year   
+	###########################
+	#    tos                  #
+	###########################	
+	cube = iris.load_cube(tos_dir+model+'_tos_piControl*.nc')
+	cube.data = scipy.signal.filtfilt(b1, a1, cube.data,axis = 0)
+	coord = cube.coord('time')
+	dt = coord.units.num2date(coord.points)
+	year_tos = np.array([coord.units.num2date(value).year for value in coord.points])
+	moc = scipy.signal.filtfilt(b1, a1, data[model]['moc'],axis = 0)
+	data[model]['annual_moc_tos_correlation']  = time_space_correlations(cube,moc,year_tos,data[model]['moc_year'])
+	spg_barotropic = scipy.signal.filtfilt(b1, a1, data[model]['spg_barotropic'],axis = 0)
+	data[model]['annual_spg_barotropic_tos_correlation']  = time_space_correlations(cube,spg_barotropic,year_tos,data[model]['barotropic_year'])
+	stg_barotropic = scipy.signal.filtfilt(b1, a1, data[model]['stg_barotropic'],axis = 0)
+	data[model]['annual_stg_barotropic_tos_correlation']  = time_space_correlations(cube,stg_barotropic,year_tos,data[model]['barotropic_year'])
+# 	gs = scipy.signal.filtfilt(b1, a1, data[model]['gulf_stream_strength'],axis = 0)
+# 	data[model]['annual_gs_tos_correlation']  = time_space_correlations(cube,gs,year_tos,data[model]['gulf_stream_year'])
+	cube.data = scipy.signal.filtfilt(b2, a2,cube.data ,axis = 0)
+	moc = scipy.signal.filtfilt(b2, a2, moc,axis = 0)
+	data[model]['decadal_moc_tos_correlation']  = time_space_correlations(cube,moc,year_tos,data[model]['moc_year'])
+	spg_barotropic = scipy.signal.filtfilt(b2, a2, spg_barotropic,axis = 0)
+	data[model]['decadal_spg_barotropic_tos_correlation']  = time_space_correlations(cube,spg_barotropic,year_tos,data[model]['barotropic_year'])
+	stg_barotropic = scipy.signal.filtfilt(b2, a2, stg_barotropic,axis = 0)
+	data[model]['decadal_stg_barotropic_tos_correlation']  = time_space_correlations(cube,stg_barotropic,year_tos,data[model]['barotropic_year'])
+# 	gs = scipy.signal.filtfilt(b2, a2, gs,axis = 0)
+# 	data[model]['decadal_gs_tos_correlation']  = time_space_correlations(cube,gs,year_tos,data[model]['gulf_stream_year'])
+	###########################
+	#    sos                  #
+	###########################	
+	cube = iris.load_cube(sos_dir+model+'_sos_piControl*.nc')
+	cube.data = scipy.signal.filtfilt(b1, a1, cube.data,axis = 0)
+	coord = cube.coord('time')
+	dt = coord.units.num2date(coord.points)
+	year_sos = np.array([coord.units.num2date(value).year for value in coord.points])
+	moc = scipy.signal.filtfilt(b1, a1, data[model]['moc'],axis = 0)
+	data[model]['annual_moc_sos_correlation']  = time_space_correlations(cube,moc,year_sos,data[model]['moc_year'])
+	spg_barotropic = scipy.signal.filtfilt(b1, a1, data[model]['spg_barotropic'],axis = 0)
+	data[model]['annual_spg_barotropic_sos_correlation']  = time_space_correlations(cube,spg_barotropic,year_sos,data[model]['barotropic_year'])
+	stg_barotropic = scipy.signal.filtfilt(b1, a1, data[model]['stg_barotropic'],axis = 0)
+	data[model]['annual_stg_barotropic_sos_correlation']  = time_space_correlations(cube,stg_barotropic,year_sos,data[model]['barotropic_year'])
+# 	gs = scipy.signal.filtfilt(b1, a1, data[model]['gulf_stream_strength'],axis = 0)
+# 	data[model]['annual_gs_sos_correlation']  = time_space_correlations(cube,gs,year_sos,data[model]['gulf_stream_year'])
+	cube.data = scipy.signal.filtfilt(b2, a2,cube.data ,axis = 0)
+	moc = scipy.signal.filtfilt(b2, a2, moc,axis = 0)
+	data[model]['decadal_moc_sos_correlation']  = time_space_correlations(cube,moc,year_sos,data[model]['moc_year'])
+	spg_barotropic = scipy.signal.filtfilt(b2, a2, spg_barotropic,axis = 0)
+	data[model]['decadal_spg_barotropic_sos_correlation']  = time_space_correlations(cube,spg_barotropic,year_sos,data[model]['barotropic_year'])
+	stg_barotropic = scipy.signal.filtfilt(b2, a2, stg_barotropic,axis = 0)
+	data[model]['decadal_stg_barotropic_sos_correlation']  = time_space_correlations(cube,stg_barotropic,year_sos,data[model]['barotropic_year'])
+# 	gs = scipy.signal.filtfilt(b2, a2, gs,axis = 0)
+# 	data[model]['decadal_gs_sos_correlation']  = time_space_correlations(cube,gs,year_sos,data[model]['gulf_stream_year'])
+
+
+
+
+def mean_cubes(data,models,variable):
+	cube = data[models[0]][variable].copy()
+	cube_data = cube.data.copy() * 0.0
+	i = 0
+	for model in models:
+			i += 1
+			print model
+			cube_data += data[model][variable].data
+	cube.data = cube_data
+	return cube / i
+
+
+plt.close('all')
+x = 'decadal_moc_tos_correlation'
+qplt.contourf(mean_cubes(data,models,x),np.linspace(-0.5,0.5,31))
+plt.gca().coastlines()
+plt.title(x)
+plt.savefig('/home/ph290/Documents/figures/'+x+'.png')
+
+plt.close('all')
+x = 'decadal_spg_barotropic_tos_correlation'
+qplt.contourf(mean_cubes(data,models,x),np.linspace(-0.5,0.5,31))
+plt.gca().coastlines()
+plt.title(x)
+plt.savefig('/home/ph290/Documents/figures/'+x+'.png')
+
+plt.close('all')
+x = 'decadal_moc_sos_correlation'
+qplt.contourf(mean_cubes(data,models,x),np.linspace(-0.5,0.5,31))
+plt.gca().coastlines()
+plt.title(x)
+plt.savefig('/home/ph290/Documents/figures/'+x+'.png')
+
+plt.close('all')
+x = 'decadal_spg_barotropic_sos_correlation'
+qplt.contourf(mean_cubes(data,models,x),np.linspace(-0.5,0.5,31))
+plt.gca().coastlines()
+plt.title(x)
+plt.savefig('/home/ph290/Documents/figures/'+x+'.png')
+
+plt.close('all')
+x = 'annual_moc_tos_correlation'
+qplt.contourf(mean_cubes(data,models,x),np.linspace(-0.5,0.5,31))
+plt.gca().coastlines()
+plt.title(x)
+plt.savefig('/home/ph290/Documents/figures/'+x+'.png')
+
+plt.close('all')
+x = 'annual_spg_barotropic_tos_correlation'
+qplt.contourf(mean_cubes(data,models,x),np.linspace(-0.5,0.5,31))
+plt.gca().coastlines()
+plt.title(x)
+plt.savefig('/home/ph290/Documents/figures/'+x+'.png')
+
+plt.close('all')
+x = 'annual_moc_sos_correlation'
+qplt.contourf(mean_cubes(data,models,x),np.linspace(-0.5,0.5,31))
+plt.gca().coastlines()
+plt.title(x)
+plt.savefig('/home/ph290/Documents/figures/'+x+'.png')
+
+plt.close('all')
+x = 'annual_spg_barotropic_sos_correlation'
+qplt.contourf(mean_cubes(data,models,x),np.linspace(-0.5,0.5,31))
+plt.gca().coastlines()
+plt.title(x)
+plt.savefig('/home/ph290/Documents/figures/'+x+'.png')
+
+
+
+
+
+plt.close('all')
+x = 'annual_stg_barotropic_tos_correlation'
+qplt.contourf(mean_cubes(data,models,x),np.linspace(-0.5,0.5,31))
+plt.gca().coastlines()
+plt.title(x)
+plt.savefig('/home/ph290/Documents/figures/'+x+'.png')
+
+plt.close('all')
+x = 'annual_stg_barotropic_sos_correlation'
+qplt.contourf(mean_cubes(data,models,x),np.linspace(-0.5,0.5,31))
+plt.gca().coastlines()
+plt.title(x)
+plt.savefig('/home/ph290/Documents/figures/'+x+'.png')
+
+
+
+
+

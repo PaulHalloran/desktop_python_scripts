@@ -1,0 +1,147 @@
+
+from iris.coords import DimCoord
+import iris.plot as iplt
+import time
+import numpy as np
+import glob
+import iris
+import iris.coord_categorisation
+import iris.analysis
+import subprocess
+import os
+import iris.quickplot as qplt
+import matplotlib.pyplot as plt
+import numpy.ma as ma
+import running_mean
+from scipy import signal
+import scipy
+import scipy.stats
+import numpy as np
+import statsmodels.api as sm
+import running_mean_post
+from scipy.interpolate import interp1d
+from datetime import datetime, timedelta
+import running_mean
+import cartopy.crs as ccrs
+import iris.analysis.cartography
+
+#execfile('cmip5_stm_func.py')
+
+'''
+#producing an Atlantic mask (mask masked and Atlantic has value of 1, elsewhere zero)
+'''
+
+input_file = '/media/usb_external1/cmip5/last1000/CCSM4_vo_past1000_regridded.nc'
+cube = iris.load_cube(input_file)
+
+tmp_cube = cube[0,16].copy()
+tmp_cube = tmp_cube*0.0
+
+location = -30
+
+for y in np.arange(180):
+    flag = 0
+    tmp = tmp_cube.data.mask[y,:]
+    tmp2 = tmp_cube.data[y,:]
+    for x in np.arange(360):
+        if tmp[location] == True:
+            flag = 1
+        if ((tmp[location] == False) & (flag == 0)):
+            tmp2[location] = 1
+        tmp = np.roll(tmp,+1)
+        tmp2 = np.roll(tmp2,+1)
+    tmp_cube.data.mask[y,:] = tmp
+    tmp_cube.data.data[y,:] = tmp2.data
+
+location = location+1
+
+for y in np.arange(180):
+    flag = 0
+    tmp = tmp_cube.data.mask[y,:]
+    tmp2 = tmp_cube.data[y,:]
+    for x in np.arange(360):
+        if tmp[location] == True:
+            flag = 1
+        if ((tmp[location] == False) & (flag == 0)):
+            tmp2[location] = 1
+        tmp = np.roll(tmp,-1)
+        tmp2 = np.roll(tmp2,-1)
+    tmp_cube.data.mask[y,:] = tmp
+    tmp_cube.data.data[y,:] = tmp2.data
+
+tmp_cube.data.data[150:180,:] = 0.0
+tmp_cube.data.data[0:40,:] = 0.0
+tmp_cube.data.data[:,20:180] = 0.0
+tmp_cube.data.data[:,180:280] = 0.0
+
+loc = np.where(tmp_cube.data.data == 0.0)
+tmp_cube.data.mask[loc] = True
+
+mask1 = tmp_cube.data.mask
+
+
+# plt.close('all')
+# qplt.contourf(cube[0,28])
+# plt.show(block = False)
+
+
+'''
+#calculating stream function
+'''
+
+files = glob.glob('/media/usb_external1/cmip5/last1000/*_vo_*.nc')
+
+models = []
+strm_fun = []
+model_years = []
+
+for file in files:
+
+model = file.split('/')[5].split('_')[0]
+print model
+models.append(model)
+
+cube = iris.load_cube(file)
+
+coord = cube.coord('time')
+dt = coord.units.num2date(coord.points)
+years = np.array([coord.units.num2date(value).year for value in coord.points])
+model_years.append(years)
+
+for level in np.arange(cube.coord('depth').points.size):
+    print 'applying mask'
+    mask2 = cube.data.mask[0,level,:,:]
+    tmp_mask = np.ma.mask_or(mask1, mask2)
+    cube.data.mask[0,level,:,:] = tmp_mask
+
+cube.coord('latitude').guess_bounds()
+cube.coord('longitude').guess_bounds()
+grid_areas = iris.analysis.cartography.area_weights(cube)
+print 'collapsing cube along longitude'
+cube = cube.collapsed('longitude',iris.analysis.SUM,weights=grid_areas)
+print 'cube collapsed'
+#it is I think running out of memory here - what can we do?
+
+depths = cube.coord('depth').points
+thicknesses_tmp = (depths[0:-2]-depths[1:-1])/2.0
+thicknesses = thicknesses_tmp[0:-2]+thicknesses_tmp[1:-1]
+
+thicknesses = [ 500.0, 500.,  500.,  500.,  500.,  500.,  500.,  500.,  500.,  500.,
+                300.,  100.,  100.,  100.,  100.,  100.,  100.,  100.,  100.,
+                 55.,   10.,   10.,   10.,   10.,   10.,   10.,   10.,   10., 10.0, 10.0, 0.0]
+
+data = np.zeros([31,180])
+tmp_strm_fun = []
+for i,yz_slice in enumerate(cube.slices(['depth', 'latitude'])):
+        loc = np.where(yz_slice.coord('latitude').points >= 45)[0]
+        tmp_data = np.multiply(yz_slice.data.data,np.rot90(np.tile(thicknesses,(180,1))))
+        data[:,:] = np.cumsum(tmp_data,axis = 1)
+        tmp_data_2 = data[:,loc]
+        tmp_data_2 = tmp_data_2[::-1]
+        tmp_strm_fun = np.append(np.max(tmp_data_2),strm_fun)
+
+strm_fun.append(tmp_strm_fun)
+plt.close('all')
+plt.plot(tmp_strm_fun)
+plt.show(block = False)
+

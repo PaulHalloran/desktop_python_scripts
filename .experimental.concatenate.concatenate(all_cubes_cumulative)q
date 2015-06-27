@@ -1,0 +1,160 @@
+Help on package iris.analysis in iris:
+
+NNAAMMEE
+    iris.analysis - A package providing various analysis facilities.
+
+FFIILLEE
+    /usr/local/lib/python2.7/dist-packages/Iris-1.5.0_dev-py2.7-linux-x86_64.egg/iris/analysis/__init__.py
+
+DDEESSCCRRIIPPTTIIOONN
+    Primarily, this module provides definitions of statistical operations, such as
+    :const:`MEAN` and :const:`STD_DEV`, that can be applied to Cubes via methods
+    such as: :meth:`iris.cube.Cube.collapsed` and
+    :meth:`iris.cube.Cube.aggregated_by`.
+    
+     .. note:: These statistical operations define how to transform both the
+               metadata and the data.
+
+PPAACCKKAAGGEE  CCOONNTTEENNTTSS
+    calculus
+    cartography
+    geometry
+    interpolate
+    maths
+    trajectory
+
+CCLLAASSSSEESS
+    __builtin__.object
+        Aggregator
+    
+    class AAggggrreeggaattoorr(__builtin__.object)
+     |  Convenience class that supports common aggregation functionality.
+     |  
+     |  Methods defined here:
+     |  
+     |  ____iinniitt____(self, history, cell_method, call_func, **kwargs)
+     |      Create an aggregator for the given call_func.
+     |      
+     |      Args:
+     |      
+     |      * history (string):
+     |          History string that supports string format substitution.
+     |      * cell_method (string):
+     |          Cell method string that supports string format substitution.
+     |      * call_func (callable):
+     |          Data aggregation function.
+     |      
+     |      Kwargs:
+     |      
+     |      * kwargs:
+     |          Passed through to call_func.
+     |  
+     |  aaggggrreeggaattee(self, data, axis, **kwargs)
+     |      Perform the aggregation function given the data.
+     |      
+     |      Keyword arguments are passed through to the data aggregation function
+     |      (for example, the "percent" keyword for a percentile aggregator).
+     |      This function is usually used in conjunction with update_metadata(),
+     |      which should be passed the same keyword arguments.
+     |      
+     |      Returns:
+     |          The aggregated data.
+     |  
+     |  ppoosstt__pprroocceessss(self, collapsed_cube, data_result, **kwargs)
+     |      Process the result from :func:`iris.analysis.Aggregator.aggregate`.
+     |      
+     |      Ensures data is an array, when collapsed to a single value.
+     |      
+     |      Args:
+     |      
+     |      * collapsed_cube
+     |          A :class:`iris.cube.Cube`.
+     |      * data_result
+     |          Result from :func:`iris.analysis.Aggregator.aggregate`
+     |  
+     |  uuppddaattee__mmeettaaddaattaa(self, cube, coords, **kwargs)
+     |      Update cube history and cell method metadata w.r.t the aggregation function.
+     |      
+     |      Args:
+     |      
+     |      * cube (:class:`iris.cube.Cube`):
+     |          Source cube that requires metadata update.
+     |      * coords (:class:`iris.coords.Coord`):
+     |          The coords that were aggregated.
+     |          
+     |      Kwargs:
+     |      
+     |      * This function is intended to be used in conjuction with aggregate() and should be
+     |        passed the same keywords (for example, the "percent" keyword for a percentile aggregator).
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  ____ddiicctt____
+     |      dictionary for instance variables (if defined)
+     |  
+     |  ____wweeaakkrreeff____
+     |      list of weak references to the object (if defined)
+
+FFUUNNCCTTIIOONNSS
+    cclleeaarr__pphheennoommeennoonn__iiddeennttiittyy(cube)
+        Helper function to clear the standard_name, attributes, and cell_methods of a cube.
+    
+    ccoooorrdd__ccoommppaarriissoonn(*cubes)
+        Convenience function to help compare coordinates on one or more cubes by their metadata.
+        
+        Return a dictionary where the key represents the statement, "Given these cubes list the coordinates 
+        which, when grouped by metadata, are/have..."
+        
+        Keys:
+        
+        * grouped_coords
+           A list of coordinate groups of all the coordinates grouped together by their coordinate definition
+        * ungroupable
+           A list of coordinate groups which contain at least one None, meaning not all Cubes provide an equivalent coordinate  
+        * not_equal
+           A list of coordinate groups of which not all are equal (superset of ungroupable)
+        * no_data_dimension
+           A list of coordinate groups of which all have no data dimensions on their respective cubes 
+        * scalar
+           A list of coordinate groups of which all have shape (1, )
+        * non_equal_data_dimension
+           A list of coordinate groups of which not all have the same data dimension on their respective cubes
+        * non_equal_shape
+           A list of coordinate groups of which not all have the same shape
+        * equal_data_dimension
+           A list of coordinate groups of which all have the same data dimension on their respective cubes
+        * equal
+           A list of coordinate groups of which all are equal
+        * ungroupable_and_dimensioned
+           A list of coordinate groups of which not all cubes had an equivalent (in metadata) coordinate which also describe a data dimension
+        * dimensioned
+           A list of coordinate groups of which all describe a data dimension on their respective cubes
+        * ignorable
+           A list of scalar, ungroupable non_equal coordinate groups
+        * resamplable
+            A list of equal, different data dimensioned coordinate groups
+        * transposable
+           A list of non equal, same data dimensioned, non scalar coordinate groups
+        
+        Example usage::
+            
+            result = coord_comparison(cube1, cube2)
+            print 'All equal coordinates: ', result['equal']
+
+DDAATTAA
+    CCOOUUNNTT = <iris.analysis.Aggregator object>
+    GGMMEEAANN = <iris.analysis.Aggregator object>
+    HHMMEEAANN = <iris.analysis.Aggregator object>
+    MMAAXX = <iris.analysis.Aggregator object>
+    MMEEAANN = <iris.analysis.WeightedAggregator object>
+    MMEEDDIIAANN = <iris.analysis.Aggregator object>
+    MMIINN = <iris.analysis.Aggregator object>
+    PPEERRCCEENNTTIILLEE = <iris.analysis.Aggregator object>
+    PPRROOPPOORRTTIIOONN = <iris.analysis.Aggregator object>
+    RRMMSS = <iris.analysis.Aggregator object>
+    SSTTDD__DDEEVV = <iris.analysis.Aggregator object>
+    SSUUMM = <iris.analysis.Aggregator object>
+    VVAARRIIAANNCCEE = <iris.analysis.Aggregator object>
+    ____aallll____ = ('COUNT', 'GMEAN', 'HMEAN', 'MAX', 'MEAN', 'MEDIAN', 'MIN', ...
+

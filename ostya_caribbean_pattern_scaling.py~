@@ -1,0 +1,23 @@
+import iris
+import numpy as np
+import matplotlib.pyplot as plt
+
+def my_callback(cube, field, filename):
+    #this is faster than the commented out callback above (because it does not load in all of the data), but keeping the above because more descriptive
+    # Remove the first dimension (time) if it has a length of one.
+    # This allows iris' merge to join similar cubes together.
+    if cube.ndim == 3 and cube.shape[0] == 1:
+        cube = cube[0, ...]
+
+    # there are some bad attributes in the NetCDF files which make the data incompatible for merging.
+    cube.attributes.pop('start_date')
+    cube.attributes.pop('stop_date')
+    cube.attributes.pop('stop_time')
+    cube.attributes.pop('history')
+    return cube
+
+
+file = '/home/ph290/data1/observations/ostia/M01-UKMO-L4LRfnd-GLOB-v01-fv02-OSTIARANclim.nc'
+
+sst = iris.load_cube(file,'sea_surface_temperature',callback=my_callback)
+

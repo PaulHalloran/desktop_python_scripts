@@ -1,0 +1,49 @@
+import numpy as np
+import iris
+import matplotlib.pyplot as plt
+import iris.quickplot as qplot
+import cartopy.crs as ccrs
+
+def my_callback(cube, field, filename):
+    bad_coord1 = cube.coord(dimensions=1)
+    bad_coord2 = cube.coord(dimensions=2)
+    cube.remove_coord(bad_coord1)
+    cube.remove_coord(bad_coord2)
+    good_coord1 = cube.coords('latitude')
+    good_coord2 = cube.coords('longitude')
+    cube.add_dim_coord(good_coord1,data_dim=1)
+    cube.add_dim_coord(good_coord2,data_dim=2)
+
+cube = iris.load_cube(tos_files,callback=my_callback)
+
+
+tos_files='/home/ph290/data1/cmip5_data/tos*.nc'
+msftmyz_file='/home/ph290/data1/cmip5_data/msftmyz*.nc'
+areacello='/home/ph290/data1/cmip5_data/areacello_fx_MPI-ESM-MR_1pctCO2_r0i0p0.nc'
+
+areacello_cube=iris.load_cube(areacello)
+weights=areacello_cube.data
+
+
+tos_cube=iris.load(tos_files)
+cube=tos_cube[0]
+
+area_avged_cube = cube.collapsed(['longitude', 'latitude'], iris.analysis.MEAN, weights=weights2)
+
+#cube.remove_coord("cell index along second dimension")
+#cube.remove_coord("cell index along first dimension")
+
+
+qplot.contourf(cube[0])
+plt.show()
+
+
+data = cube[1].data
+lats = cube.coord('latitude').points
+lons = cube.coord('longitude').points
+
+ax = plt.axes()
+plt.contourf(lons, lats, data, 60,
+                cmap='spectral')
+
+plt.show()

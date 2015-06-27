@@ -1,0 +1,11 @@
+import carbchem
+import numpy as np
+import matplotlib.pyplot as plt
+
+t = np.zeroz(20) + 15.0
+s = np.zeroz(20) + 35.0
+alk = np.zeroz(20) + 2.3
+dic = np.zeroz(20) + 2.2
+
+print carbchem(1,-99.9,t,s,slk,dic)
+

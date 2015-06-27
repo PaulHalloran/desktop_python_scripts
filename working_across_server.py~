@@ -1,0 +1,8 @@
+'''
+1st install paramiko throiugh package manager
+'''
+
+import paramiko
+ssh = paramiko.SSHClient()
+ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+ssh.connect('geog-mce.ex.ac.uk', username='ph290', password='WHATEVER_IT_IS')

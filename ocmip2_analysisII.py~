@@ -1,0 +1,79 @@
+import iris
+import matplotlib.pyplot as plt
+import glob
+import numpy as np
+import time
+import numpy as np
+import glob
+import iris
+import iris.coord_categorisation
+import iris.analysis
+import subprocess
+import os
+import uuid
+import iris.quickplot as qplt
+import cartopy
+from iris.analysis.geometry import geometry_area_weights
+from cartopy.io.shapereader import Reader, natural_earth
+from shapely.ops import cascaded_union
+
+def unique_models(all_files):
+    model = []
+    for file in all_files:
+        model.append(file.split('/')[8])
+    return np.unique(np.array(model))
+
+
+'''
+EDIT THE FOLLOWING TEXT
+'''
+
+input_directory = '/media/usb_external1/ocmip2/c14/'
+resolution = 5 #degrees (for regridding - not low resolution of OCMIP2 models)
+
+'''
+Main bit of code follows...
+'''
+
+all_files = glob.glob('/home/ph290/data0/ocmip/dods.ipsl.jussieu.fr/ocmip/phase2/*/Abiotic/hist/*.nc')
+
+
+models = unique_models(all_files)
+
+
+#for model in models:
+
+model = models[0]
+cube1 = iris.load_cube(input_directory+model+'_d14c_hist.nc')
+cube2 = iris.load_cube(input_directory+model+'_dpco2_hist.nc')
+
+lon_west = -75.0
+lon_east = -7.5
+lat_south = 0.0
+lat_north = 60.0 
+
+cube_region_tmp = cube1.intersection(longitude=(lon_west, lon_east))
+cube1_region = cube_region_tmp.intersection(latitude=(lat_south, lat_north))
+
+cube_region_tmp = cube2.intersection(longitude=(lon_west, lon_east))
+cube2_region = cube_region_tmp.intersection(latitude=(lat_south, lat_north))
+
+
+shpfilename = natural_earth(resolution='110m', category='physical', name='land')
+reader = Reader(shpfilename)
+continents = reader.records()
+
+cube1[.coord('latitude').guess_bounds()
+cube1.coord('longitude').guess_bounds()
+
+continent_geometries = reader.geometries()  # NB. Switched from using records()
+all_continents_geometry = cascaded_union(list(continent_geometries))
+area_weights = geometry_area_weights(cube1, all_continents_geometry)
+
+land_mask = np.where(area_weights > 0, True, False)
+cube_masked = cube1.copy()
+cube_masked.data = np.ma.array(cube1.data, mask=land_mask)
+
+qplt.contourf(cube_masked[0],31)
+plt.gca().coastlines()
+plt.show()

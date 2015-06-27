@@ -1,0 +1,8 @@
+import iris
+import iris.quickplot as qplt
+import matplotlib.pyplot as plt
+
+file = '/home/ph290/data1/observations/hadcrut4/HadCRUT.4.2.0.0.median.nc'
+
+cube = iris.load_cube(file)
+

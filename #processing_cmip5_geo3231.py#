@@ -1,0 +1,29 @@
+import iris
+import numpy as np
+import iris.analysis
+import glob
+import os
+
+mport subprocess
+
+cmd = ['ssh', 'ph290@atoll',
+       'mkdir -p output/dir; cat - > output/dir/file.dat']
+
+p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+
+dir = '/home/data/cmip5/hadgem2es/'
+
+files = glob.glob(dir+'so_*.nc')
+print files
+
+
+#concatenate and regrid file
+for i,var in enumerate(vars):
+        for model in models_uniqiue:
+                test = glob.glob(output_directory+var+'_'+model+'_regridded.nc')
+                if len(test) == 0:
+                        files = glob.glob(dirs[i]+'/*'+model+'*.nc')
+                        files = ' '.join(files)
+                        subprocess.call(['cdo mergetime '+files+' /home/ph290/data0/tmp/temp.nc'], shell=True)
+                        subprocess.call(['cdo remapbil,r360x180 -selname,'+var+' /home/ph290/data0/tmp/temp.nc '+output_directory+var+'_'+model+'_regridded.nc'], shell=True)
+             

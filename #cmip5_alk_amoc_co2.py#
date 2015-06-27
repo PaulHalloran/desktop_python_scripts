@@ -1,0 +1,105 @@
+import numpy as np
+import iris
+import matplotlib.pyplot as plt
+import iris.coord_categorisation
+import iris.analysis
+import ols
+from running_mean import * 
+
+def my_callback(cube, field,files_tmp):
+    cube.attributes.pop('history')
+    cube.attributes.pop('tracking_id')
+    cube.attributes.pop('creation_date')
+    return cube
+
+amoc_dir = '/home/ph290/data0/cmip5_data/msftmyz/piControl/'
+talk_dir = '/data/data0/ph290/cmip5_data/talk_mon/'
+fgco2_dir = '/data/data0/ph290/cmip5_data/picontrol/fgco2/'
+tos_dir = '/data/data0/ph290/cmip5_data/tos/piControl/'
+
+model = 'CanESM2'
+
+amoc_file = amoc_dir+'*'+model+'*.nc'
+talk_file = talk_dir+'*'+model+'*.nc'
+fgco2_file = fgco2_dir+'*'+model+'*.nc'
+tos_file = tos_dir+'*'+model+'*.nc'
+
+amoc_mon = iris.load_cube(amoc_file)
+iris.coord_categorisation.add_year(amoc_mon, 'time', name='year')
+amoc = amoc_mon.aggregated_by('year', iris.analysis.MEAN)
+
+lats = amoc.coord('latitude').points
+lat = np.where(lats >= 26)[0][0]
+amoc_strength = np.max(amoc.data[:,0,:,lat],axis = 1)
+
+talk_mon =  iris.cube.CubeList.concatenate(iris.load(talk_file,callback = my_callback))
+iris.coord_categorisation.add_year(talk_mon[0], 'time', name='year')
+talk = talk_mon[0].aggregated_by('year', iris.analysis.MEAN)
+constraint = iris.Constraint(depth = 0)
+talk = talk.extract(constraint)[0]
+
+fgco2_mon =  iris.cube.CubeList.concatenate(iris.load(fgco2_file,callback = my_callback))
+iris.coord_categorisation.add_year(fgco2_mon[0], 'time', name='year')
+fgco2 = fgco2_mon[0].aggregated_by('year', iris.analysis.MEAN)
+
+tos_mon =  iris.cube.CubeList.concatenate(iris.load(tos_file,callback = my_callback))
+iris.coord_categorisation.add_year(tos_mon[0], 'time', name='year')
+tos = tos_mon[0].aggregated_by('year', iris.analysis.MEAN)
+
+lon_west = 360-80
+lon_east = 360
+lat_south = 26.0
+lat_north = 70
+
+lat_south2 = 0.0
+lat_north2 = 26
+
+region = iris.Constraint(longitude=lambda v: lon_west <= v <= lon_east,latitude=lambda v: lat_south <= v <= lat_north)
+region2 = iris.Constraint(longitude=lambda v: lon_west <= v <= lon_east,latitude=lambda v: lat_south2 <= v <= lat_north2)
+
+talk_region = talk.extract(region)
+talk_region.coord('latitude').guess_bounds()
+talk_region.coord('longitude').guess_bounds()
+grid_areas = iris.analysis.cartography.area_weights(talk_region)
+talk_ts = talk_region.collapsed(['latitude','longitude'],iris.analysis.MEAN, weights=grid_areas)
+
+talk_region2 = talk.extract(region2)
+talk_region2.coord('latitude').guess_bounds()
+talk_region2.coord('longitude').guess_bounds()
+grid_areas2 = iris.analysis.cartography.area_weights(talk_region2)
+talk_ts2 = talk_region2.collapsed(['latitude','longitude'],iris.analysis.MEAN, weights=grid_areas2)
+
+
+fgco2_region = fgco2.extract(region)
+fgco2_ts = fgco2_region.collapsed(['latitude','longitude'],iris.analysis.MEAN, weights=grid_areas)
+
+tos_region = tos.extract(region)
+tos_ts = tos_region.collapsed(['latitude','longitude'],iris.analysis.MEAN, weights=grid_areas)
+
+coord = amoc.coord('time')
+dt = coord.units.num2date(coord.points)
+amoc_year = np.array([coord.units.num2date(value).year for value in coord.points])
+
+coord = talk.coord('time')
+dt = coord.units.num2date(coord.points)
+talk_year = np.array([coord.units.num2date(value).year for value in coord.points])
+
+amoc_strength2 = amoc_strength[:-10]
+
+averaging = 50
+
+x = np.empty([amoc_strength2.size-averaging,3])
+x[:,0] = running_mean(amoc_strength2,averaging)[:-1*averaging]
+x[:,1] = running_mean(talk_ts.data*1.0e10,averaging)
+[:-averaging]
+#x[:,2] = running_mean(tos_ts.data,averaging)[:-averaging]
+x[:,2] = running_mean(talk_ts2.data,averaging)[:-averaging]
+
+y = running_mean(fgco2_ts.data*1.0e9,averaging)[:-averaging]
+
+mymodel = ols.ols(y,x,'y',['x1','x2','x3'])
+
+plt.scatter(y,mymodel.b[0]+mymodel.b[1]*x[:,0]+mymodel.b[2]*x[:,1]+mymodel.b[3]*x[:,2])
+plt.show()
+
+

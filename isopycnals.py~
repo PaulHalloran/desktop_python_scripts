@@ -1,0 +1,26 @@
+import numpy
+from matplotlib.pyplot import *
+from iris import *
+from iris.analysis import *
+import iris.quickplot as quickplot
+import seawater
+
+directory = '/home/ph290/Documents/teaching/'
+
+salinity_file = 'salinity_annual_1deg.nc'
+temperature_file = 'temperature_annual_1deg.nc'
+
+salinity_cube = load(directory+salinity_file,'Statistical Mean')[0]
+temperature_cube = load(directory+temperature_file,'Statistical Mean')[0]
+
+
+density_cube = temperature_cube.copy()
+density_cube.standard_name = 'sea_water_density'
+density_cube.units = 'kg m-3'
+
+density_cube.data = seawater.dens(temperature_cube.data,salinity_cube.data,1)
+meridional_slice = density_cube.extract(Constraint(longitude=182.5))
+quickplot.contourf(meridional_slice, 30, coords=['latitude','depth']) 
+CS = quickplot.contour(meridional_slice, 10, coords=['latitude','depth'],colors='k')
+clabel(CS, fontsize=9, inline=1)
+show() 

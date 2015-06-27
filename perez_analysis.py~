@@ -1,0 +1,9 @@
+import numpy as np
+
+in_file1='/home/ph290/data0/box_model_obs/results/box_model_qump_results_stg.csv'
+in_file2='/home/ph290/data0/box_model_obs/results/box_model_qump_results_spg.csv'
+
+input1=np.genfromtxt(in_file1, delimiter=",")
+input2=np.genfromtxt(in_file2, delimiter=",")
+
+

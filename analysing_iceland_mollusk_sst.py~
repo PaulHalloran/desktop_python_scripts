@@ -1,0 +1,868 @@
+'''
+import time
+import numpy as np
+import glob
+import iris
+import iris.coord_categorisation
+import iris.analysis
+import subprocess
+import os
+import iris.quickplot as qplt
+import matplotlib.pyplot as plt
+import numpy.ma as ma
+import running_mean
+from scipy import signal
+import scipy
+import scipy.stats
+import numpy as np
+import statsmodels.api as sm
+import running_mean_post
+from scipy.interpolate import interp1d
+
+
+#this is a simple function that we call later to look at the file names and extarct from them a unique list of models to process
+#note that the model name is in the filename when downlaode ddirectly from the CMIP5 archive
+def model_names(directory,variable):
+	files = glob.glob(directory+'/*'+variable+'*.nc')
+	models_tmp = []
+	for file in files:
+		statinfo = os.stat(file)
+		if statinfo.st_size >= 1:
+			models_tmp.append(file.split('/')[-1].split('_')[0])
+			models = np.unique(models_tmp)
+	return models
+
+
+input_directory = '/media/usb_external1/cmip5/reynolds_data/'
+
+variables = np.array(['tos','sos'])
+#specify the temperal averaging period of the data in your files e.g for an ocean file 'Omon' (Ocean monthly) or 'Oyr' (ocean yearly). Atmosphere would be comething like 'Amon'. Note this just prevents probvlems if you accidently did not specify the time frequency when doenloading the data, so avoids trying to puut (e.g.) daily data and monthly data in the same file.
+
+'''
+#Main bit of code follows...
+'''
+
+'''
+
+#volcanic_data
+
+
+file1 = '/data/data0/ph290/misc_data/last_millenium_volcanic/ICI5_3090N_AOD_c.txt'
+file2 = '/data/data0/ph290/misc_data/last_millenium_volcanic/ICI5_030N_AOD_c.txt'
+file3 = '/data/data0/ph290/misc_data/last_millenium_volcanic/ICI5_3090S_AOD_c.txt'
+file4 = '/data/data0/ph290/misc_data/last_millenium_volcanic/ICI5_030S_AOD_c.txt'
+
+data1 = np.genfromtxt(file4)
+data2 = np.genfromtxt(file4)
+data3 = np.genfromtxt(file3)
+data4 = np.genfromtxt(file3)
+data_tmp = np.zeros([data1.shape[0],4])
+data_tmp[:,0] = data1[:,1]
+data_tmp[:,1] = data2[:,1]
+data_tmp[:,2] = data3[:,1]
+data_tmp[:,3] = data4[:,1]
+data = np.mean(data_tmp,axis = 1)
+data_final = data1.copy()
+data_final[:,1] = data
+
+
+
+#rest
+'''
+
+models = model_names(input_directory,variables[0])
+
+
+lon_west1 = -75.0+360
+lon_east1 = -7.5+360
+lat_south1 = 0.0
+lat_north1 = 60.0
+
+region1 = iris.Constraint(longitude=lambda v: lon_west1 <= v <= lon_east1,latitude=lambda v: lat_south1 <= v <= lat_north1)
+
+lon_west2 = -20+360
+lon_east2 = -15+360
+lat_south2 = 66
+lat_north2 = 70
+
+region2 = iris.Constraint(longitude=lambda v: lon_west2 <= v <= lon_east2,latitude=lambda v: lat_south2 <= v <= lat_north2)
+
+lon_west3 = -75.0+360
+lon_east3 = -7.5+360
+lat_south3 = -60.0
+lat_north3 = 0.0
+
+region3 = iris.Constraint(longitude=lambda v: lon_west3 <= v <= lon_east3,latitude=lambda v: lat_south3 <= v <= lat_north3)
+
+models = list(models)
+models.remove('BNU-ESM')
+models.remove('CanESM2')
+models.remove('MIROC5')
+models.remove('MRI-CGCM3')
+models.remove('CSIRO-Mk3-6-0')
+import running_mean
+
+
+cube1 = iris.load_cube(input_directory+models[0]+'*'+variables[0]+'*.nc')[0]
+
+models2 = []
+cubes_amo = []
+cubes_n = []
+ts_amo = []
+ts_n = []
+
+for model in models:
+	print 'processing: '+model
+	try:
+		cube = iris.load_cube(input_directory+model+'*'+variables[0]+'*.nc')
+	except:
+		cube = iris.load(input_directory+model+'*'+variables[0]+'*.nc')
+		cube = cube[0]
+	if model == ('EC-EARTH' or 'MRI-CGCM3' or 'NorESM1-ME'):
+		for i in range(cube.shape[0]):
+			cube.data.mask[i] = cube1.data.mask
+	tmp1 = cube.extract(region1)
+	cubes_amo.append(tmp1)
+	ts_amo.append(tmp1.collapsed(['latitude','longitude'],iris.analysis.MEAN))
+	tmp2 = cube.extract(region2)
+	cubes_n.append(tmp2)
+	ts_n.append(tmp2.collapsed(['latitude','longitude'],iris.analysis.MEAN))
+
+
+
+
+for i,model in enumerate(models):
+	print model
+	#qplt.scatter(ts_n[i],ts_amo[i])
+	#plt.show()
+	x = running_mean.running_mean(ts_n[i].data,10)
+	y = running_mean.running_mean(ts_amo[i].data,10)
+	if x.size >= 500:
+		x2 = x[np.logical_not(np.isnan(x))]
+		y2 = y[np.logical_not(np.isnan(y))]
+		slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(x2,y2)
+		print r_value
+		plt.close('all')
+		fig, ax1 = plt.subplots()
+		ax1.plot(x2,'red')
+		ax2 = ax1.twinx()
+		ax2.plot(y2,'black')
+		ax1 = plt.gca()
+		ax1.ticklabel_format(useOffset=False)
+		ax2 = plt.gca()
+		ax2.ticklabel_format(useOffset=False)
+		plt.savefig('/home/ph290/Documents/figures/iceland/'+model+'.png')
+		#plt.scatter(x2,y2)
+		#plt.show()
+
+'''
+#So AMO regoin and this box currelate very well on teh multidecadal timescale and longer, but not so well on the shorter timecale (1yr to perhaps decadal)
+
+#So could filter at ~5yr or even 10yr and look at what the sst-patterns are looking like
+'''
+
+
+input_directory2 = '/media/usb_external1/cmip5/reynolds_data/past1000/'
+
+modelsb = model_names(input_directory2,variables[0])
+
+cube1 = iris.load_cube(input_directory+modelsb[0]+'*'+variables[0]+'*.nc')[0]
+
+modelbs2 = []
+cubes_amob = []
+cubes_nb = []
+ts_amob = []
+ts_nb = []
+cubes_southb = []
+ts_southb = []
+
+for model in modelsb:
+	print 'processing: '+model
+	try:
+		cube = iris.load_cube(input_directory2+model+'*'+variables[0]+'*.nc')
+	except:
+		cube = iris.load(input_directory2+model+'*'+variables[0]+'*.nc')
+		cube = cube[0]
+	if model == ('MRI-CGCM3'):
+		for i in range(cube.shape[0]):
+			cube.data.mask[i] = cube1.data.mask
+	tmp1 = cube.extract(region1)
+	cubes_amob.append(tmp1)
+	#qplt.contourf(tmp1[0])
+	#plt.show()
+	ts_amob.append(tmp1.collapsed(['latitude','longitude'],iris.analysis.MEAN))
+	tmp2 = cube.extract(region2)
+	cubes_nb.append(tmp2)
+	ts_nb.append(tmp2.collapsed(['latitude','longitude'],iris.analysis.MEAN))
+	tmp3 = cube.extract(region3)
+	cubes_southb.append(tmp3)
+	ts_southb.append(tmp3.collapsed(['latitude','longitude'],iris.analysis.MEAN))
+
+mann_file = '/home/ph290/data0/misc_data/iamo_mann.dat'
+mann_data = np.genfromtxt(mann_file,skip_header = 4)
+
+mann_file2 = '/home/ph290/data0/misc_data/amoscr.txt'
+mann_data2 = np.genfromtxt(mann_file2)
+
+reynolds_file = '/home/ph290/data0/reynolds/ultra_data.csv'
+reynolds_data = np.genfromtxt(reynolds_file,skip_header = 1,delimiter = ',')
+
+
+#plt.close('all')
+#for i,ts in enumerate(ts_amob):
+#	fig, ax1 = plt.subplots(figsize=(15, 6))
+#	coord = ts.coord('time')
+#	dt = coord.units.num2date(coord.points)
+#	year = np.array([coord.units.num2date(value).year for value in coord.points])
+#	loc = np.where(year <= 1860)[0]
+#	year = year[loc]
+#	y = running_mean.running_mean(ts.data[loc]-np.mean(ts.data[loc]),20)
+#	y = y[np.logical_not(np.isnan(y))]
+#	yr = year[np.logical_not(np.isnan(y))]
+#	ax1.plot(yr,signal.detrend(y),label = modelsb[i],linewidth = 2)
+#	plt.legend(prop={'size':12})
+#	ax2 = ax1.twinx()
+#	loc = np.where((mann_data[:,0] <= 1850) & (mann_data[:,0] >= 850) )[0]
+#	ax2.plot(mann_data[loc[0]:loc[-1],0],signal.detrend(mann_data[loc[0]:loc[-1],1]),'k',linewidth = 2)
+#	ax3 = ax2.twinx()
+#	loc = np.where((reynolds_data[:,0] <= 1850) & (reynolds_data[:,0] >= 850))[0]
+#	ax3.plot(reynolds_data[loc[0]:loc[-1],0],running_mean.running_mean(signal.detrend(reynolds_data[loc[0]:loc[-1],1]),20),'r',linewidth = 2)
+#	plt.savefig('/home/ph290/Documents/figures/'+modelsb[i]+'_preindustrial_AMO.png')
+
+coord = ts_amob[0].coord('time')
+dt = coord.units.num2date(coord.points)
+year = np.array([coord.units.num2date(value).year for value in coord.points])
+
+#fig, ax1 = plt.subplots(figsize=(18, 4))
+#year2 = year[0]+np.arange(1000)
+#y = running_mean.running_mean(multimodel_mean-np.mean(multimodel_mean),10)
+#y = y[np.logical_not(np.isnan(y))]
+#yr = year2[np.logical_not(np.isnan(y))]
+#ax1.plot(yr,signal.detrend(y),'b',linewidth = 2)
+#ax2 = ax1.twinx()
+#loc = np.where((mann_data[:,0] <= 1850) & (mann_data[:,0] >= 850) )[0]
+#ax2.plot(mann_data[loc[0]:loc[-1],0],signal.detrend(mann_data[loc[0]:loc[-1],1]),'k',linewidth = 2)
+#ax3 = ax2.twinx()
+#loc = np.where((reynolds_data[:,0] <= 1850) & (reynolds_data[:,0] >= 850) )[0]
+#y_reynolds = reynolds_data[loc[0]:loc[-1],1]*-1
+#ax3.plot(reynolds_data[loc[0]:loc[-1],0],running_mean.running_mean(signal.detrend(y_reynolds),10),'r',linewidth = 2)
+#plt.legend(prop={'size':6})
+#plt.savefig('/home/ph290/Documents/figures/multi_model_mean_preindustrial_AMO.png')
+#plt.show()
+
+#np.shape(ts_amob)[0]
+models_to_use = ['MRI-CGCM3','FGOALS-s2','MIROC-ESM', 'MPI-ESM-P', 'bcc-csm1-1','CCSM4']
+#models_to_use = ['MRI-CGCM3','FGOALS-s2','MIROC-ESM', 'MPI-ESM-P', 'bcc-csm1-1']
+#models_to_use = ['MRI-CGCM3','MIROC-ESM', 'MPI-ESM-P', 'bcc-csm1-1']
+#models_to_use = ['MIROC-ESM', 'MPI-ESM-P', 'bcc-csm1-1']
+data= np.zeros([1000,np.size(models_to_use)])
+j=0
+for i,ts in enumerate(ts_amob):
+	if modelsb[i] in (models_to_use):
+		print modelsb[i]
+		data[:,j] = signal.detrend(ts.data[0:1000])
+		j += 1
+
+multimodel_mean = data.mean(axis = 1)
+multimodel_max = data.max(axis = 1)
+multimodel_min = data.min(axis = 1)
+
+
+plt.close('all')
+fig = plt.subplots(2,1,figsize=(10, 5))
+
+ax1 = plt.subplot(2,1,1)
+#year2 = year[0]+np.arange(1000)
+#y = running_mean.running_mean(multimodel_mean-np.mean(multimodel_mean),10)
+#y = y[np.logical_not(np.isnan(y))]
+#yr = year2[np.logical_not(np.isnan(y))]
+#ax1.plot(yr,y,'b',linewidth = 2, alpha=0.8)
+#x_fill = np.concatenate([year2,np.flipud(year2)])
+#y_fill = np.concatenate([multimodel_min,np.flipud(multimodel_max)])
+#ax1.fill_between(x_fill,y_fill,edgecolor = 'none', facecolor='blue', alpha=0.2)
+#ax2 = ax1.twinx()
+loc = np.where((reynolds_data[:,0] <= 1850) & (reynolds_data[:,0] >= 850) )[0]
+y_reynolds = reynolds_data[loc[0]:loc[-1],1]
+ax1.plot(reynolds_data[loc[0]:loc[-1],0],running_mean.running_mean(signal.detrend(y_reynolds),1),'r',linewidth = 2, alpha=0.5)
+#ax1.plot(reynolds_data[loc[0]:loc[-1],0],signal.detrend(y_reynolds),'r',linewidth = 2, alpha=0.8)
+ax2 = ax1.twinx()
+loc = np.where((mann_data[:,0] <= 1850) & (mann_data[:,0] >= 953) )[0]
+ax2.plot(mann_data[loc[0]:loc[-1],0],signal.detrend(mann_data[loc[0]:loc[-1],1]),'k',linewidth = 2)
+ax1.set_ylim([-4.0,4.0])
+ax2.set_ylim([-0.5,0.5])
+ax2.set_ylabel('N. Iceland SST (red)')
+ax1.set_ylabel('AMO index (black)')
+ax1.set_xlim([900,1900])
+ax1.plot([900,1900],[0,0],'k')
+
+ax1 = plt.subplot(2,1,2)
+#year2 = year[0]+np.arange(1000)
+year2 = 1300+np.arange(550)
+#y = running_mean.running_mean(multimodel_mean-np.mean(multimodel_mean),10)
+#y = multimodel_mean-np.mean(multimodel_mean)
+y = multimodel_mean[450::]-np.mean(multimodel_mean[450::])
+y = y[np.logical_not(np.isnan(y))]
+yr = year2[np.logical_not(np.isnan(y))]
+ax1.plot(yr,signal.detrend(y),'b',linewidth = 2, alpha=0.5,label = 'CMIP5 multimodel mean')
+x_fill = np.concatenate([year2,np.flipud(year2)])
+y_fill = np.concatenate([multimodel_min[450::],np.flipud(multimodel_max[450::])])
+ax1.fill_between(x_fill,y_fill,edgecolor = 'none', facecolor='blue', alpha=0.2)
+#ax2 = ax1.twinx()
+loc = np.where((mann_data[:,0] <= 1850) & (mann_data[:,0] >= 850) )[0]
+#loc = np.where((mann_data[:,0] <= 1850) & (mann_data[:,0] >= 1300) )[0]
+ax1.plot(mann_data[loc[0]:loc[-1],0],signal.detrend(mann_data[loc[0]:loc[-1],1]),'k',linewidth = 2, alpha=0.8,label = 'Mann et al., AMO index')
+loc = np.where((mann_data2[:,0] <= 1850) & (mann_data2[:,0] >= 850) )[0]
+ax1.plot(mann_data2[loc,0],signal.detrend(mann_data2[loc,1]),'g',linewidth = 2, alpha=0.8,label = 'Mann et al., AMO index (screened)')
+ax1.set_ylabel('N. Atlantic SST deg C')
+#ax1.set_ylabel('blue = CMIP5')
+ax1.set_ylim([-0.5,0.5])
+ax1.set_xlim([900,1900])
+#ax2.set_ylim([-0.5,0.5])
+ax1.plot([900,1900],[0,0],'k')
+ax1.set_xlabel('year')
+plt.legend(ncol=2,prop={'size':10}).draw_frame(False)
+plt.savefig('/home/ph290/Documents/figures/multi_model_mean_preindustrial_AMO_renolds_mann2.png')
+#plt.show(block = False)
+
+
+#data2 = np.zeros([980,4])
+#plt.close('all')
+#fig, ax1 = plt.subplots(figsize=(18, 4))
+#j = 0
+#for i,dummy in enumerate(ts_amob):
+#	if modelsb[i] in ['MRI-CGCM3','FGOALS-s2','CCSM4','MIROC-ESM', 'MPI-ESM-P', 'bcc-csm1-1']:
+#		print modelsb[i]
+#		ts = ts_amob[i]
+#		coord = ts.coord('time')
+#		dt = coord.units.num2date(coord.points)
+#		year = np.array([coord.units.num2date(value).year for value in coord.points])
+#		loc = np.where(year <= 1860)[0]
+#		y1 = running_mean.running_mean(ts.data[loc]-np.mean(ts.data[loc]),20)
+#		y1 = y1[np.logical_not(np.isnan(y1))]
+#		y1b = ts.data[loc]-np.mean(ts.data[loc])
+#		y1b = y1b[np.logical_not(np.isnan(y1b))]
+#		ts2 = ts_southb[i]
+#		y2 = running_mean.running_mean(ts2.data[loc]-np.mean(ts2.data[loc]),20)
+#		y2 = y2[np.logical_not(np.isnan(y2))]
+#		y2b = ts2.data[loc]-np.mean(ts2.data[loc])
+#		y2b = y2b[np.logical_not(np.isnan(y2b))]
+#		yr = year[np.logical_not(np.isnan(y1))]
+#		ax1.plot(yr,signal.detrend(y1-y2),label = modelsb[i],linewidth = 2)
+#		data2[:,j] = signal.detrend(y1b[0:980]-y2b[0:980])
+#		j = j+1
+#
+#plt.show()
+
+'''
+#And now plotting Mann against interhemispheric ATlantic temperature (and therefore climate impact...)
+'''
+
+# multimodel_mean = data2.mean(axis = 1)
+# fig, ax1 = plt.subplots(figsize=(18, 4))
+# year2 = year[0]+np.arange(1000)
+# y = running_mean.running_mean(multimodel_mean-np.mean(multimodel_mean),20)
+# y = y[np.logical_not(np.isnan(y))]
+# yr = year2[np.logical_not(np.isnan(y))]
+# ax1.plot(yr,signal.detrend(y),'b',linewidth = 2)
+# ax2 = ax1.twinx()
+# loc = np.where((mann_data[:,0] <= 1850) & (mann_data[:,0] >= 850) )[0]
+# ax2.plot(mann_data[loc[0]:loc[-1],0],signal.detrend(mann_data[loc[0]:loc[-1],1]),'k',linewidth = 2)
+# plt.legend(prop={'size':6})
+# plt.title('N. Atl minus S. Atlantic')
+# plt.savefig('/home/ph290/Documents/figures/multi_model_mean_preindustrial_interhemispheric_t_diff.png')
+# #plt.show()
+
+
+lon_west2 = -20+360
+lon_east2 = -15+360
+lat_south2 = 65
+lat_north2 = 70
+
+region2 = iris.Constraint(longitude=lambda v: lon_west2 <= v <= lon_east2,latitude=lambda v: lat_south2 <= v <= lat_north2)
+
+modelbs2 = []
+cubes_amob = []
+cubes_nb = []
+ts_amob = []
+ts_nb = []
+cubes_southb = []
+ts_southb = []
+
+for model in modelsb:
+        print 'processing: '+model
+        try:
+                cube = iris.load_cube(input_directory2+model+'*'+variables[0]+'*.nc')
+        except:
+                cube = iris.load(input_directory2+model+'*'+variables[0]+'*.nc')
+                cube = cube[0]
+        if model == ('MRI-CGCM3'):
+                for i in range(cube.shape[0]):
+                        cube.data.mask[i] = cube1.data.mask
+        tmp1 = cube.extract(region1)
+        cubes_amob.append(tmp1)
+        #qplt.contourf(tmp1[0])
+        #plt.show()
+        ts_amob.append(tmp1.collapsed(['latitude','longitude'],iris.analysis.MEAN))
+        tmp2 = cube.extract(region2)
+	#plt.close('all')
+        #qplt.contourf(tmp2[0])
+        #plt.show(block = True)
+	#time.sleep(0.5)
+        cubes_nb.append(tmp2)
+        ts_nb.append(tmp2.collapsed(['latitude','longitude'],iris.analysis.MEAN))
+        tmp3 = cube.extract(region3)
+        cubes_southb.append(tmp3)
+        ts_southb.append(tmp3.collapsed(['latitude','longitude'],iris.analysis.MEAN))
+
+
+#now looking at surface ocean salinity as well as T
+modelbs2 = []
+cubes_amobs = []
+cubes_nbs = []
+ts_amobs = []
+ts_nbs = []
+cubes_southbs = []
+ts_southbs = []
+
+
+for model in modelsb:
+	if model in ['CCSM4','MIROC-ESM', 'MPI-ESM-P']:
+		print 'processing: '+model
+		try:
+			cube = iris.load_cube(input_directory2+model+'*'+variables[1]+'*.nc')
+		except:
+			cube = iris.load(input_directory2+model+'*'+variables[1]+'*.nc')
+			cube = cube[0]
+		if model == ('MRI-CGCM3'):
+			for i in range(cube.shape[0]):
+				cube.data.mask[i] = cube1.data.mask
+		tmp1 = cube.extract(region1)
+		cubes_amobs.append(tmp1)
+		#qplt.contourf(tmp1[0])
+		#plt.show()
+		ts_amobs.append(tmp1.collapsed(['latitude','longitude'],iris.analysis.MEAN))
+		tmp2 = cube.extract(region2)
+		#plt.close('all')
+		#qplt.contourf(tmp2[0])
+		#plt.show(block = True)
+		#time.sleep(0.5)
+		cubes_nbs.append(tmp2)
+		ts_nbs.append(tmp2.collapsed(['latitude','longitude'],iris.analysis.MEAN))
+		tmp3 = cube.extract(region3)
+		cubes_southbs.append(tmp3)
+		ts_southbs.append(tmp3.collapsed(['latitude','longitude'],iris.analysis.MEAN))
+
+
+
+#np.shape(ts_amob)[0]
+models_to_use = ['MRI-CGCM3','FGOALS-s2','MIROC-ESM', 'MPI-ESM-P', 'bcc-csm1-1','CCSM4']
+#models_to_use = ['MRI-CGCM3','FGOALS-s2','MIROC-ESM', 'MPI-ESM-P', 'bcc-csm1-1']
+#models_to_use = ['MRI-CGCM3','MIROC-ESM', 'MPI-ESM-P', 'bcc-csm1-1']
+#models_to_use = ['MIROC-ESM', 'MPI-ESM-P', 'bcc-csm1-1']
+data= np.zeros([1000,np.size(models_to_use)])
+j=0
+for i,ts in enumerate(ts_nb):
+	if modelsb[i] in (models_to_use):
+		print modelsb[i]
+		data[:,j] = signal.detrend(ts.data[0:1000])
+		j += 1
+
+multimodel_mean = data.mean(axis = 1)
+multimodel_max = data.max(axis = 1)
+multimodel_min = data.min(axis = 1)
+
+#np.shape(ts_amob)[0]
+models_to_use = ['MIROC-ESM', 'MPI-ESM-P','CCSM4']
+#models_to_use = ['MRI-CGCM3','FGOALS-s2','MIROC-ESM', 'MPI-ESM-P', 'bcc-csm1-1']
+#models_to_use = ['MRI-CGCM3','MIROC-ESM', 'MPI-ESM-P', 'bcc-csm1-1']
+#models_to_use = ['MIROC-ESM', 'MPI-ESM-P', 'bcc-csm1-1']
+datas= np.zeros([1000,np.size(models_to_use)])
+j=0
+for i,ts in enumerate(ts_nbs):
+	if modelsb[i] in (models_to_use):
+		print modelsb[i]
+		datas[:,j] = signal.detrend(ts.data[0:1000])
+		j += 1
+
+multimodel_means = datas.mean(axis = 1)
+multimodel_maxs = datas.max(axis = 1)
+multimodel_mins = datas.min(axis = 1)
+
+'''
+#DELETE
+'''
+
+plt.close('all')
+fig = plt.subplots(5,1,figsize=(15, 10))
+
+ax1 = plt.subplot(5,1,1)
+#year2 = year[0]+np.arange(1000)
+#y = running_mean.running_mean(multimodel_mean-np.mean(multimodel_mean),10)
+#y = y[np.logical_not(np.isnan(y))]
+#yr = year2[np.logical_not(np.isnan(y))]
+#ax1.plot(yr,y,'b',linewidth = 2, alpha=0.8)
+#x_fill = np.concatenate([year2,np.flipud(year2)])
+#y_fill = np.concatenate([multimodel_min,np.flipud(multimodel_max)])
+#ax1.fill_between(x_fill,y_fill,edgecolor = 'none', facecolor='blue', alpha=0.2)
+#ax2 = ax1.twinx()
+loc = np.where((reynolds_data[:,0] <= 1850) & (reynolds_data[:,0] >= 850) )[0]
+y_reynolds = reynolds_data[loc[0]:loc[-1],1]
+ax1.plot(reynolds_data[loc[0]:loc[-1],0],running_mean.running_mean(signal.detrend(y_reynolds),1),'r',linewidth = 2, alpha=0.5)
+#ax1.plot(reynolds_data[loc[0]:loc[-1],0],signal.detrend(y_reynolds),'r',linewidth = 2, alpha=0.8)
+ax2 = ax1.twinx()
+loc = np.where((mann_data[:,0] <= 1850) & (mann_data[:,0] >= 953) )[0]
+ax2.plot(mann_data[loc[0]:loc[-1],0],signal.detrend(mann_data[loc[0]:loc[-1],1]),'k',linewidth = 2)
+ax1.set_ylim([-4.0,4.0])
+ax2.set_ylim([-0.5,0.5])
+ax2.set_ylabel('N. Iceland SST (red)')
+ax1.set_ylabel('AMO index (black)')
+ax1.set_xlim([900,1900])
+ax1.plot([900,1900],[0,0],'k')
+
+ax1 = plt.subplot(5,1,2)
+year2 = year[0]+np.arange(1000)
+#year2 = 1300+np.arange(550)
+#y = running_mean.running_mean(multimodel_mean-np.mean(multimodel_mean),10)
+y = multimodel_mean-np.mean(multimodel_mean)
+#y = multimodel_mean[450::]-np.mean(multimodel_mean[450::])
+y = y[np.logical_not(np.isnan(y))]
+yr = year2[np.logical_not(np.isnan(y))]
+ax1.plot(yr,signal.detrend(y),'b',linewidth = 2, alpha=0.5,label = 'CMIP5 multimodel mean')
+x_fill = np.concatenate([year2,np.flipud(year2)])
+y_fill = np.concatenate([multimodel_min,np.flipud(multimodel_max)])
+#y_fill = np.concatenate([multimodel_min[450::],np.flipud(multimodel_max[450::])])
+ax1.fill_between(x_fill,y_fill,edgecolor = 'none', facecolor='blue', alpha=0.2)
+ax2 = ax1.twinx()
+loc = np.where((mann_data[:,0] <= 1850) & (mann_data[:,0] >= 850) )[0]
+#loc = np.where((mann_data[:,0] <= 1850) & (mann_data[:,0] >= 1300) )[0]
+ax2.plot(mann_data[loc[0]:loc[-1],0],signal.detrend(mann_data[loc[0]:loc[-1],1]),'k',linewidth = 2, alpha=0.8,label = 'Mann et al., AMO index')
+ax2.set_ylabel('N. Atlantic SST anom. deg C')
+ax1.set_ylabel('N. Iceland SST anom. dec C')
+ax1.set_ylim([-0.9,0.9])
+ax2.set_ylim([-0.7,0.7])
+ax1.set_xlim([900,1900])
+#ax2.set_ylim([-0.5,0.5])
+ax1.plot([900,1900],[0,0],'k')
+ax1.set_xlabel('year')
+plt.legend(ncol=2,prop={'size':10}).draw_frame(False)
+
+ax1 = plt.subplot(5,1,3)
+year2 = year[0]+np.arange(1000)
+#year2 = 1300+np.arange(550)
+#y = running_mean.running_mean(multimodel_mean-np.mean(multimodel_mean),10)
+y = multimodel_mean-np.mean(multimodel_mean)
+#y = multimodel_mean[450::]-np.mean(multimodel_mean[450::])
+y = y[np.logical_not(np.isnan(y))]
+yr = year2[np.logical_not(np.isnan(y))]
+ax1.plot(yr,running_mean.running_mean(signal.detrend(y),1),'b',linewidth = 2, alpha=0.5,label = 'CMIP5 multimodel mean')
+x_fill = np.concatenate([year2,np.flipud(year2)])
+y_fill = np.concatenate([multimodel_min,np.flipud(multimodel_max)])
+#y_fill = np.concatenate([multimodel_min[450::],np.flipud(multimodel_max[450::])])
+ax1.fill_between(x_fill,y_fill,edgecolor = 'none', facecolor='blue', alpha=0.2)
+ax2 = ax1.twinx()
+loc = np.where((reynolds_data[:,0] <= 1850) & (reynolds_data[:,0] >= 850) )[0]
+y_reynolds = reynolds_data[loc[0]:loc[-1],1]
+ax2.plot(reynolds_data[loc[0]:loc[-1],0],running_mean.running_mean(signal.detrend(y_reynolds),1),'r',linewidth = 2, alpha=0.5,label = 'd18O T')
+ax2.set_ylabel('N. Icland d18OT')
+ax1.set_ylabel('N. Iceland SST anom. dec C')
+ax1.set_ylim([-0.9,0.9])
+#ax2.set_ylim([-0.7,0.7])
+ax1.set_xlim([900,1900])
+#ax2.set_ylim([-0.5,0.5])
+ax1.plot([900,1900],[0,0],'k')
+ax1.set_xlabel('year')
+plt.legend(ncol=2,prop={'size':10}).draw_frame(False)
+ax1.fill_between([1250,1750,1750,1250,1250],[-0.9,-0.9,0.9,0.9,-0.9],edgecolor = 'none', facecolor='yellow', alpha=0.2)
+
+ax1 = plt.subplot(5,1,4)
+year2 = year[0]+np.arange(1000)
+#year2 = 1300+np.arange(550)
+#y = running_mean.running_mean(multimodel_mean-np.mean(multimodel_mean),10)
+y = (multimodel_means-np.mean(multimodel_means))*-1.0
+#y = multimodel_mean[450::]-np.mean(multimodel_mean[450::])
+y = y[np.logical_not(np.isnan(y))]
+yr = year2[np.logical_not(np.isnan(y))]
+ax1.plot(yr,running_mean.running_mean(signal.detrend(y),1),'g',linewidth = 2, alpha=0.5,label = 'CMIP5 multimodel\nmean salinity (*-1.0)')
+ax2 = ax1.twinx()
+loc = np.where((reynolds_data[:,0] <= 1850) & (reynolds_data[:,0] >= 850) )[0]
+y_reynolds = reynolds_data[loc[0]:loc[-1],1]
+ax2.plot(reynolds_data[loc[0]:loc[-1],0],running_mean.running_mean(signal.detrend(y_reynolds),1),'r',linewidth = 2, alpha=0.5,label = 'd18O T')
+x_fill = np.concatenate([year2,np.flipud(year2)])
+y_fill = np.concatenate([multimodel_mins,np.flipud(multimodel_maxs)])*-1.0
+#y_fill = np.concatenate([multimodel_min[450::],np.flipud(multimodel_max[450::])])
+ax1.fill_between(x_fill,y_fill,edgecolor = 'none', facecolor='g', alpha=0.2)
+ax1.set_ylabel('CMIP5 multimodel\nmean salinity (*-1.0)')
+ax2.set_ylabel('N. Icland d18OT')
+ax1.set_xlim([900,1900])
+ax1.plot([900,1900],[0,0],'k')
+ax1.set_xlabel('year')
+ax1.fill_between([950,1250,1250,950,950],[-0.4,-0.4,0.4,0.4,-0.4],edgecolor = 'none', facecolor='yellow', alpha=0.2)
+ax1.fill_between([1750,1800,1800,1750,1750],[-0.4,-0.4,0.5,0.4,-0.4],edgecolor = 'none', facecolor='yellow', alpha=0.2)
+ax1.set_ylim([-0.4,0.4])
+plt.legend(ncol=2,prop={'size':10}).draw_frame(False)
+
+
+ax1 = plt.subplot(5,1,5)
+ax1.plot(data_final[:,0],data_final[:,1],'pink')
+ax1.plot(data_final[:,0],running_mean_post.running_mean_post(data_final[:,1],12.0*40.0)*10,'k')
+ax1.set_xlim([900,1900])
+ax1.set_ylim([0.0,0.3])
+ax1.set_xlabel('year')
+ax1.set_ylabel('N. hem. volcanics')
+
+plt.savefig('/home/ph290/Documents/figures/multi_model_mean_preindustrial_renolds_mann2_salinity_n_ice_cmip_volc.png')
+#plt.show(block = False)
+
+
+'''
+#temperature
+'''
+
+
+
+volcanic_smoothing = 50 #yrs
+model_smoothing = 10 #yrs
+
+loc = np.where((data_final[:,0] >= np.min(year2)) & (data_final[:,0] <= np.max(year2)))[0]
+volc = running_mean_post.running_mean_post(data_final[loc,1],12.0*volcanic_smoothing)
+volc_unsmoothed = data_final[loc,1]
+
+loca = np.where((reynolds_data[:,0] <= 1850) & (reynolds_data[:,0] >= 850) )[0]
+y_reynolds = reynolds_data[loca[0]:loca[-1],1]
+x_reynolds = reynolds_data[loca[0]:loca[-1],0]
+
+locb = np.where((data_final[:,0] >= np.min(x_reynolds)) & (data_final[:,0] <= np.max(x_reynolds)))[0]
+volcb = running_mean_post.running_mean_post(data_final[locb,1],12.0*150.0)
+
+y = volc
+x = np.linspace(0,np.size(volc),np.size(volc))
+f = interp1d(x, y)
+f_unsmoothed = interp1d(np.linspace(0,np.size(volc_unsmoothed),np.size(volc_unsmoothed)), volc_unsmoothed)
+
+yb = volcb
+xb = np.linspace(0,np.size(volcb),np.size(volcb))
+fb = interp1d(xb, yb)
+
+x2 = f(np.linspace(0,np.size(volc),np.size(multimodel_mean)))
+x2b = fb(np.linspace(0,np.size(volcb),np.size(y_reynolds)))
+
+y2 = running_mean_post.running_mean_post(multimodel_mean,model_smoothing)
+
+y2b = running_mean_post.running_mean_post(signal.detrend(y_reynolds),20)
+
+
+plt.close('all')
+plt.figure(2,figsize=(14, 5))
+ax1 = plt.subplot(1,1,1)
+#ax1.scatter(y2,x2)
+ax1.plot(year2,y2*-1.0,'b',linewidth=3,alpha = 0.8)
+ax1.plot(year2,-1.0*multimodel_mean,'b',alpha = 0.3)
+#ax1.plot(x_reynolds,y2b*-0.5,'b',linewidth=3)
+ax2 = ax1.twinx()
+ax2.plot(year2,x2,'r',linewidth=3,alpha = 0.8)
+ax2.plot(year2,f_unsmoothed(np.linspace(0,np.size(volc_unsmoothed),np.size(multimodel_mean))),'r',alpha = 0.3)
+#ax2.plot(x_reynolds,x2b,'r',linewidth=3)
+ax1.set_ylim([-0.9,1.3])
+ax2.set_ylim([1.0e-3,1.0e0])
+#ax2.set_ylim([1.0e-5,1.0e1])
+ax1.set_xlabel('year')
+ax2.set_ylabel('30-90N volcanic AOD (log scale)')
+ax1.set_ylabel('-1*model Iceland SST')
+
+ax2.set_yscale('log')
+#plt.savefig('/home/ph290/Documents/figures/volcanics_explain_n_iceland_t.png')
+plt.show(block = False)
+
+
+# year2 = year[0]+np.arange(1000)
+# loc_v = np.where((data_final[:,1] >= ) & ())[0]
+# ax1.scatter(running_mean_post.running_mean_post(data_final[loc_v,1],12.0*40.0),multimodel_mean, facecolors='none', edgecolors = 'k',label = 'all years')
+# loc = np.where(year2 <= 1250)[0]
+# ax1.scatter(multimodel_mean[loc],multimodel_means[loc], facecolors='none', edgecolors = 'r',label = 'MCA years')
+# loc2 = np.where((year2 >= 1250) & (year2 <= 1750))[0]
+# ax1.scatter(multimodel_mean[loc2],multimodel_means[loc2], facecolors='none', edgecolors = 'b',label = 'LIA years')
+# ax1.set_xlabel('SST')
+# ax2.set_ylabel('surface salinity')
+#plt.legend()
+
+'''
+#salinity
+
+volcanic_smoothing = 50 #yrs
+model_smoothing = 10 #yrs
+
+loc = np.where((data_final[:,0] >= np.min(year2)) & (data_final[:,0] <= np.max(year2)))[0]
+volc = running_mean_post.running_mean_post(data_final[loc,1],12.0*volcanic_smoothing)
+volc_unsmoothed = data_final[loc,1]
+
+loca = np.where((reynolds_data[:,0] <= 1850) & (reynolds_data[:,0] >= 850) )[0]
+y_reynolds = reynolds_data[loca[0]:loca[-1],1]
+x_reynolds = reynolds_data[loca[0]:loca[-1],0]
+
+locb = np.where((data_final[:,0] >= np.min(x_reynolds)) & (data_final[:,0] <= np.max(x_reynolds)))[0]
+volcb = running_mean_post.running_mean_post(data_final[locb,1],12.0*150.0)
+
+y = volc
+x = np.linspace(0,np.size(volc),np.size(volc))
+f = interp1d(x, y)
+f_unsmoothed = interp1d(np.linspace(0,np.size(volc_unsmoothed),np.size(volc_unsmoothed)), volc_unsmoothed)
+
+yb = volcb
+xb = np.linspace(0,np.size(volcb),np.size(volcb))
+fb = interp1d(xb, yb)
+
+x2 = f(np.linspace(0,np.size(volc),np.size(multimodel_means)))
+x2b = fb(np.linspace(0,np.size(volcb),np.size(y_reynolds)))
+
+y2 = running_mean_post.running_mean_post(multimodel_means,model_smoothing)
+
+y2b = running_mean_post.running_mean_post(signal.detrend(y_reynolds),20)
+
+
+plt.close('all')
+plt.figure(2,figsize=(14, 5),dpi=60)
+ax1 = plt.subplot(1,1,1)
+#ax1.scatter(y2,x2)
+ax1.plot(year2,y2*-1.0,'g',linewidth=3,alpha = 0.8)
+ax1.plot(year2,multimodel_means*-1.0,'g',alpha = 0.3)
+#ax1.plot(x_reynolds,y2b,'b',linewidth=3)
+ax2 = ax1.twinx()
+ax2.plot(year2,x2,'r',linewidth=3,alpha = 0.8)
+ax2.semilogy(year2,f_unsmoothed(np.linspace(0,np.size(volc_unsmoothed),np.size(multimodel_means))),'r',alpha = 0.3,linewidth= 3)
+#ax2.plot(x_reynolds,x2b,'r',linewidth=3)
+ax1.set_ylim([-0.2,0.2])
+#ax2.set_ylim([0,0.3])
+ax2.set_ylim([1.0e-6,1.0e1])
+ax1.set_xlabel('year')
+ax2.set_ylabel('S. hemisphere volcanic AOD (log scale)')
+ax1.set_ylabel('model Iceland SSS')
+
+#ax2.set_yscale('log')
+plt.savefig('/home/ph290/Documents/figures/volcanics_explain_n_iceland_s.png')
+#plt.show(block = False)
+
+
+
+# plt.close('all')
+# ax1 = plt.subplot(1,1,1)
+# year2 = year[0]+np.arange(1000)
+# ax1.scatter(multimodel_mean,multimodel_means, facecolors='none', edgecolors = 'k',label = 'all years')
+# loc = np.where(year2 <= 1250)[0]
+# ax1.scatter(multimodel_mean[loc],multimodel_means[loc], facecolors='none', edgecolors = 'r',label = 'MCA years')
+# loc2 = np.where((year2 >= 1250) & (year2 <= 1750))[0]
+# ax1.scatter(multimodel_mean[loc2],multimodel_means[loc2], facecolors='none', edgecolors = 'b',label = 'LIA years')
+# ax1.set_xlabel('SST')
+# ax2.set_ylabel('surface salinity')
+# plt.legend()
+# plt.show(block = False)
+
+'''
+
+
+# x1 = multimodel_mean[104:-1]
+# x2 = multimodel_means[104:-1]
+
+# x = np.column_stack((x1,x2))
+# x = sm.add_constant(x)
+# y = np.flipud(y_reynolds[0:-2])
+
+# model = sm.OLS(y,x)
+# results = model.fit()
+
+# fig = plt.subplots(1,1)
+# ax1 = plt.subplot(1,1,1)
+# ax1.plot(y)
+# ax2 = ax1.twinx()
+# ax2.plot(x2*-1.0,'r')
+# #plt.plot(results.params[2]*x2+results.params[1]*x1+results.params[0])
+# plt.show()
+
+sos_cubes_data = []
+for model in modelsb:
+	if model in ['CCSM4','MIROC-ESM', 'MPI-ESM-P']:
+		print 'processing: '+model
+		try:
+			cube = iris.load_cube(input_directory2+model+'*'+variables[1]+'*.nc')
+		except:
+			cube = iris.load(input_directory2+model+'*'+variables[1]+'*.nc')
+			cube = cube[0]
+		coord = cube.coord('time')
+		dt = coord.units.num2date(coord.points)
+		year = np.array([coord.units.num2date(value).year for value in coord.points])
+		loc = np.where((year >= 950) & (year <= 1250))
+		sos_cubes_data.append(cube[loc].data)
+
+sos_cubes_mean = cube[loc]
+x = signal.detrend(np.ma.mean(sos_cubes_data,axis = 0),axis = 0)
+sos_cubes_mean.data = np.ma.MaskedArray(x,mask= np.ones_like(x))
+for i in range(sos_cubes_mean.shape[0]):
+	sos_cubes_mean.data.mask[i] = cube1.data.mask
+
+
+loc = np.where((year2 >= 950) & (year2 <= 1250))
+multimodel_means_part = multimodel_means[loc]
+
+highs = np.where(multimodel_means_part > np.mean(multimodel_means_part))
+lows = np.where(multimodel_means_part < np.mean(multimodel_means_part))
+
+plt.close('all')
+plt.figure()
+qplt.contourf(sos_cubes_mean[highs].collapsed('time',iris.analysis.MEAN)-sos_cubes_mean[lows].collapsed('time',iris.analysis.MEAN),30)
+plt.gca().coastlines()
+plt.title('salinity high minus low MCA years')
+plt.savefig('/home/ph290/Documents/figures/high_minus_low_years_s.png')
+#plt.show()
+
+
+'''
+'''
+
+tos_cubes_data = []
+for model in modelsb:
+	if model in ['MRI-CGCM3','FGOALS-s2','MIROC-ESM', 'MPI-ESM-P', 'bcc-csm1-1','CCSM4']:
+		print 'processing: '+model
+		try:
+			cube = iris.load_cube(input_directory2+model+'*'+variables[0]+'*.nc')
+		except:
+			cube = iris.load(input_directory2+model+'*'+variables[0]+'*.nc')
+			cube = cube[0]
+		coord = cube.coord('time')
+		dt = coord.units.num2date(coord.points)
+		year = np.array([coord.units.num2date(value).year for value in coord.points])
+		loc = np.where((year >= 1300) & (year <= 1700))
+		tos_cubes_data.append(cube[loc].data)
+
+tos_cubes_mean = cube[loc]
+x = signal.detrend(np.ma.mean(tos_cubes_data,axis = 0),axis = 0)
+tos_cubes_mean.data = np.ma.MaskedArray(x,mask= np.ones_like(x))
+for i in range(tos_cubes_mean.shape[0]):
+	tos_cubes_mean.data.mask[i] = cube1.data.mask
+
+
+loc = np.where((year >= 1300) & (year <= 1700))
+multimodel_mean_part = multimodel_mean[loc]
+
+high = np.where(multimodel_mean_part > np.mean(multimodel_mean_part))
+low = np.where(multimodel_mean_part < np.mean(multimodel_mean_part))
+
+plt.close('all')
+plt.figure()
+qplt.contourf(tos_cubes_mean[high].collapsed('time',iris.analysis.MEAN)-tos_cubes_mean[low].collapsed('time',iris.analysis.MEAN),30)
+plt.gca().coastlines()
+plt.title('sst high minus low LIA (1300-1700) years')
+plt.savefig('/home/ph290/Documents/figures/high_minus_low_years_t.png')
+#plt.show()
+
+
+'''
+
+
+
+
+
+
+
+
+
+
+

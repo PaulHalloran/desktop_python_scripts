@@ -1,0 +1,117 @@
+import numpy as np
+import glob
+import iris
+import iris.coord_categorisation
+import iris.analysis
+import subprocess
+import os
+import matplotlib.pyplot as plt
+import iris.quickplot as qplt
+import matplotlib.cm as mpl_cm
+
+def model_names(directory):
+	files = glob.glob(directory+'*.nc')
+	models_tmp = []
+	for file in files:
+		statinfo = os.stat(file)
+		if statinfo.st_size >= 1:
+			models_tmp.append(file.split('/')[-1].split('_')[0])
+			models = np.unique(models_tmp)
+	return models
+
+models = model_names('/media/usb_external1/cmip5/gulf_stream_analysis/regridded/')
+runs = ['piControl']
+#,'rcp85']
+variables = np.array(['uo','tas'])
+
+#for each model calculate a timeseried of gulf stream latutide at 45-55W
+models_gs_lat = [] #timeseries for each model of teh gulf stream latitude
+models_years = [] #the years for each model correstonding to the above
+models_tas_high_years = [] #composite for each model of surface air temperature for years with the gulf stream latitude above its mean latitude
+models_tas_low_years = [] #composite for each model of surface air temperature for years with the gulf stream latitude below its mean latitude
+
+for model in models:
+    piControl_uo_file = '/media/usb_external1/cmip5/gulf_stream_analysis/regridded/'+model+'_'+variables[0]+'_'+runs[0]+'_regridded.nc'
+    piControl_uo_cube = iris.load_cube(piControl_uo_file)
+    coord_names = [coord.name() for coord in piControl_uo_cube.coords()]
+    test1 = np.size(np.where(np.array(coord_names) == 'ocean sigma coordinate'))
+    test1b = np.size(np.where(np.array(coord_names) == 'ocean sigma over z coordinate'))
+    if test1 == 1:
+	    piControl_uo_cube.coord('ocean sigma coordinate').long_name = 'depth'
+    if test1b == 1:
+	    piControl_uo_cube.coord('ocean sigma over z coordinate').long_name = 'depth'
+    if np.size(piControl_uo_cube.coords()) >= 4:
+	    piControl_uo_cube = piControl_uo_cube.extract(iris.Constraint(depth = 0))
+    piControl_uo_cube_50w = piControl_uo_cube.extract(iris.Constraint(longitude = lambda cell: 360-55.0 < cell < 360-45.0))
+    piControl_uo_cube_50w = piControl_uo_cube_50w.extract(iris.Constraint(latitude = lambda cell: 20 < cell < 70))
+    piControl_uo_cube_50w = piControl_uo_cube_50w.collapsed('longitude',iris.analysis.MEAN)
+    latitudes = piControl_uo_cube_50w.coord('latitude').points
+    coord = piControl_uo_cube_50w.coord('time')
+    years = np.array([coord.units.num2date(value).year for value in coord.points])
+    data = piControl_uo_cube_50w.data
+    max_current = np.max(data,axis = 1)
+    gulf_stream_lat = np.empty(years.size)
+    for i in range(years.size):
+        gulf_stream_lat[i] = latitudes[np.where(data[i,:] == max_current[i])][0]
+    mean_gs_lat = gulf_stream_lat.mean()
+    models_years = np.append(models_years,years)
+    models_gs_lat = np.append(models_gs_lat,gulf_stream_lat)
+    #And now reading in surface temperature and compositing tas into years with the gulf stream N. of its mean and S. of its mean
+    piControl_tas_file = '/media/usb_external1/cmip5/gulf_stream_analysis/regridded/'+model+'_'+variables[1]+'_'+runs[0]+'_regridded.nc'
+    piControl_tas_cube = iris.load_cube(piControl_tas_file)
+    coord = piControl_tas_cube.coord('time')
+    tas_years = np.array([coord.units.num2date(value).year for value in coord.points])
+    high_years = []
+    low_years = []
+    for i,year_tmp in enumerate(years):
+        loc = np.where(tas_years == year_tmp)
+        if np.size(loc) == 1:
+            if gulf_stream_lat[i] > mean_gs_lat:
+                high_years.append(piControl_tas_cube[loc[0][0]])
+            if gulf_stream_lat[i] < mean_gs_lat:
+                low_years.append(piControl_tas_cube[loc[0][0]])
+    high_years_mean = np.mean(high_years)
+    low_years_mean = np.mean(low_years)
+    models_tas_high_years = np.append(models_tas_high_years,high_years_mean)
+    models_tas_low_years = np.append(models_tas_low_years,low_years_mean)
+
+'''
+plotting the differences between northwards and southwards gulf stream shifts...
+'''
+
+cmap = mpl_cm.get_cmap('bwr')
+min_anom = -2.0
+max_anom = 2.0
+
+diff_maps = []
+
+for i in range(models_tas_high_years.size):
+    test1 = np.size(np.shape(models_tas_high_years[i]))
+    test2 = np.size(np.shape(models_tas_low_years[i]))
+    if ((test1 > 0) & (test2 > 0)):
+        diff = models_tas_high_years[i] - models_tas_low_years[i]
+        diff.data[np.where(diff.data > max_anom)] = max_anom
+        diff.data[np.where(diff.data < min_anom)] = min_anom
+	diff_maps.append(diff)
+	fig = plt.figure()
+        qplt.contourf(diff,np.linspace(min_anom,max_anom,51),cmap=cmap)
+        plt.gca().coastlines()
+	plt.title(models[i]+' surface T anomaly')
+        plt.savefig('/home/ph290/Documents/figures/gulfstream_analysis/'+models[i]+'_high_minus_low_tas.png')
+
+
+mean_response = np.mean(diff_maps)
+var_response = np.var(diff_maps)
+
+fig = plt.figure()
+qplt.contourf(mean_response,51,cmap=cmap)
+plt.gca().coastlines()
+plt.title('Mean of surface T anomalies')
+plt.savefig('/home/ph290/Documents/figures/gulfstream_analysis/mean_high_minus_low_tas.png')
+
+
+fig = plt.figure()
+qplt.contourf(var_response,51)
+plt.gca().coastlines()
+plt.title('variance in surface T anomalies')
+plt.savefig('/home/ph290/Documents/figures/gulfstream_analysis/var_high_minus_low_tas.png')

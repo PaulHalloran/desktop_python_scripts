@@ -1,0 +1,10 @@
+from iris import *
+from iris.analysis import *
+import iris.quicplot as qplt
+from numpy import *
+from matplotlib.pyplot import *
+from scipy.stats.mstats import *
+
+cfc_file = '/home/ph290/Documents/teaching/glodap/pCFC11/pCFC11.nc'
+
+cfc_cube = load_cube(cfc_file)

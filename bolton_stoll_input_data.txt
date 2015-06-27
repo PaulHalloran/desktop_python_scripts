@@ -1,0 +1,15 @@
+FCiu=1.0 # CO2 flux from extracellular media to cell cytosol
+FBiu=1.0 # HCO3- flux from extracellular media into cell cytosol
+FCxu=1.0 # CO2 flux from cytosol to chloroplast
+FBxu=1.0 # HCO3- flux from cytosol to chloroplast
+FCio=1.0 # CO2 flux from cell cytosol to extracellular media
+Ffix=1.0 # Photosynthetic carbon fixation flux
+FHydi=1.0 # dehydration of HCO3- to CO2 in cell cytosol
+FDehi=1.0 # hydration of CO2 to HCO3- in cell cytosol
+FHydx=1.0 # dehydration of HCO3- to CO2 in chloroplast
+FDehx=1.0 # dehydration of HCO3- to CO2 in chloroplast
+FCvu=1.0 # CO2 flux from cytosol to coccolith vesicle
+FBvu=1.0 # HCO3- flux from cytosol to coccolith vesicle
+FHydv=1.0 # hydration of CO2 to HCO3- in coccolith vesicle
+FDehv=1.0 # dehydration of HCO3- to CO2 in coccolith vesicle
+Fcal=1.0 # Calcification flux

@@ -1,0 +1,54 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib
+import matplotlib as mpl
+
+results = np.genfromtxt('/home/ph290/box_modelling/box_model_obs_paper/results/box_model_qump_results_1.csv',delimiter = ',')
+
+forcing_dir = '/home/ph290/box_modelling/box_model_obs_paper/forcing_data/co2/'
+
+co2_tmp = np.genfromtxt(forcing_dir+'co2_a.txt',delimiter = ',')
+
+co2 = np.zeros([co2_tmp.shape[0],4])
+
+co2[:,0] = np.genfromtxt(forcing_dir+'co2_a.txt',delimiter = ',')[:,1]
+co2[:,1] = np.genfromtxt(forcing_dir+'co2_b.txt',delimiter = ',')[:,1]
+co2[:,2] = np.genfromtxt(forcing_dir+'co2_c.txt',delimiter = ',')[:,1]
+co2[:,3] = np.genfromtxt(forcing_dir+'co2_d.txt',delimiter = ',')[:,1]
+
+mpl.rcdefaults()
+
+font = {'family' : 'monospace',
+        'weight' : 'bold',
+        'family' : 'serif',
+        'size'   : 14}
+
+mpl.rc('font', **font)
+
+fig, (ax1, ax2) = plt.subplots(1,2,figsize=(10, 4))
+
+for i in range(4):
+  ax1.plot(co2[:,i],linewidth = 6,alpha= 0.4)
+
+ax1.set_ylabel('atm. CO$_2$ (ppm)', multialignment='center',fontweight='bold',fontsize = 14)
+ax1.set_xlabel('year', multialignment='center',fontweight='bold',fontsize = 14)
+
+for i in range(4):
+  ax2.plot(results[:,i+1],linewidth = 6,alpha= 0.4)
+
+ax2.set_ylim([-40,-180])
+ax2.set_ylabel('ocean [CO$_2$] minus atm. [CO$_2$]\n(ppm)', multialignment='center',fontweight='bold',fontsize = 14)
+ax2.set_xlabel('year', multialignment='center',fontweight='bold',fontsize = 14)
+
+#plt.arrow(0,0,0,1, shape='full', lw=3, length_includes_head=True, head_width=.01)
+
+
+a1 = matplotlib.patches.Arrow(0.5-0.05,0.5,0.1,0.0, width=0.8,edgecolor='none',facecolor='gray',fill=True,transform=fig.transFigure, figure=fig,alpha=0.25)
+
+fig.lines.extend([a1])
+fig.canvas.draw()
+
+plt.tight_layout()
+plt.savefig('/home/ph290/Documents/figures/n_atl_paper_II/mechanism_1.png')
+#plt.savefig('/home/ph290/Documents/figures/n_atl_paper_II/mechanism_1.pdf')
+plt.close('all')

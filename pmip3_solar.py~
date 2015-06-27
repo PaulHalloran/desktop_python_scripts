@@ -1,0 +1,8 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import glob
+
+directory = '/home/ph290/data0/misc_data/last_millenium_solar/'
+
+file = glob.glob(directory+'*.txt')
+

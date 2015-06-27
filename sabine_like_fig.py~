@@ -1,0 +1,15 @@
+import iris
+import iris.quickplot as qplt
+import matplotlib.pyplot as plt
+import matplotlib.cm as mpl_cm
+
+brewer_cmap = mpl_cm.get_cmap('brewer_OrRd_09')
+
+file = '/home/ph290/data1/observations/glodap/AnthCO2/AnthCO2.nc'
+
+cube = iris.load_cube(file,'Anthropogenic_CO2')
+
+cube2 = cube.collapsed('depth',iris.analysis.SUM)
+
+qplt.contourf(cube2,31,cmap=brewer_cmap)
+plt.show()

@@ -1,0 +1,17 @@
+import numpy as np
+import glob
+import matplotlib.pyplot as plt
+import matplotlib
+import scipy
+import scipy.signal as signal
+from scipy.signal import kaiserord, lfilter, firwin, freqz
+import matplotlib.mlab as ml
+from scipy.interpolate import griddata
+
+def my_callback(cube, field, filename):
+    if field.lbuser[3] != 101:
+        raise iris.exceptions.IgnoreCubeException()
+
+filename='/project/obgc/mass_retrievals/hadcm3_files/akinao.pyd7c10.pp'
+
+temp_cube = iris.load(filename, callback=my_callback)

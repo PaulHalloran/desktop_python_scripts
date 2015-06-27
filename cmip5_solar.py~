@@ -1,0 +1,6 @@
+import numpy as np
+impoty matplotlib.pyplot as plt
+
+file = /home/ph290/data1/cmip5/forcing_data/solar_forcing_1610_2008.txt
+
+data = np.genfromtxt(file,)

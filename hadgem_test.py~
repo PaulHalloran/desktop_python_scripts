@@ -1,0 +1,69 @@
+
+import iris.plot as iplt
+import numpy as np
+import numpy.ma as ma
+import matplotlib.pyplot as plt
+import iris
+import glob
+import iris.experimental.concatenate
+import iris.analysis
+import iris.quickplot as qplt
+import iris.analysis.cartography
+import cartopy.crs as ccrs
+import subprocess
+from iris.coords import DimCoord
+import iris.coord_categorisation
+import matplotlib as mpl
+import gc
+import scipy
+import scipy.signal as signal
+from scipy.signal import kaiserord, lfilter, firwin, freqz
+import monthly_to_yearly as m2yr
+from matplotlib import mlab
+import matplotlib.mlab as ml
+import cartopy
+import running_mean
+import matplotlib.cm as mpl_cm
+from iris.coords import DimCoord
+import iris.plot as iplt
+import time
+import numpy as np
+import glob
+import iris
+import iris.coord_categorisation
+import iris.analysis
+import subprocess
+import os
+import iris.quickplot as qplt
+import matplotlib.pyplot as plt
+import numpy.ma as ma
+import running_mean
+from scipy import signal
+import scipy
+import scipy.stats
+import numpy as np
+import statsmodels.api as sm
+import running_mean_post
+from scipy.interpolate import interp1d
+from datetime import datetime, timedelta
+
+
+dir1 = '/home/ph290/hadgem2/'
+
+a  = iris.load('/home/ph290/hadgem2/ajnup/*.pp')[2]
+b  = iris.load('/home/ph290/hadgem2/ajnuq/*.pp')[2]
+c  = iris.load('/home/ph290/hadgem2/ajnuk/*.pp')[2]
+
+coord = a.coord('time')
+dt = coord.units.num2date(coord.points)
+year = np.array([coord.units.num2date(value).year for value in coord.points])
+
+high_amo_loc = np.where((year >= 1930) & (year < 1950))[0]
+low_amo_loc = np.where((year >= 1970) & (year < 1980))[0]
+
+a_cubes_h = (a[high_amo_loc].collapsed('time',iris.analysis.MEAN))
+b_cubes_h = (b[high_amo_loc].collapsed('time',iris.analysis.MEAN))
+
+
+
+cdo mergetime '+files+' '+temporary_file_space+temp_file1]

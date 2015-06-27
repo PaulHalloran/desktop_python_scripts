@@ -1,0 +1,361 @@
+Traceback (most recent call last):
+  File "enso_animation.py", line 25, in <module>
+    loc = np.where(months = month_tmp)[0]
+TypeError: where() takes no keyword arguments
+extract lats etc.
+generate filenames
+0 of 1721
+1 of 1721
+2 of 1721
+3 of 1721
+4 of 1721
+5 of 1721
+6 of 1721
+7 of 1721
+8 of 1721
+9 of 1721
+10 of 1721
+11 of 1721
+12 of 1721
+13 of 1721
+14 of 1721
+15 of 1721
+16 of 1721
+17 of 1721
+18 of 1721
+19 of 1721
+g_dbus_connection_real_closed: Remote peer vanished with error: Underlying GIOStream returned 0 bytes on an async read (g-io-error-quark, 0). Exiting.
+extract lats etc.
+generate filenames
+0 of 1721
+1 of 1721
+2 of 1721
+3 of 1721
+4 of 1721
+5 of 1721
+6 of 1721
+7 of 1721
+g_dbus_connection_real_closed: Remote peer vanished with error: Underlying GIOStream returned 0 bytes on an async read (g-io-error-quark, 0). Exiting.
+extract lats etc.
+generate filenames
+0 of 1721
+1 of 1721
+2 of 1721
+3 of 1721
+4 of 1721
+5 of 1721
+6 of 1721
+7 of 1721
+8 of 1721
+9 of 1721
+10 of 1721
+11 of 1721
+12 of 1721
+13 of 1721
+14 of 1721
+15 of 1721
+16 of 1721
+17 of 1721
+18 of 1721
+19 of 1721
+20 of 1721
+g_dbus_connection_real_closed: Remote peer vanished with error: Underlying GIOStream returned 0 bytes on an async read (g-io-error-quark, 0). Exiting.
+g_dbus_connection_real_closed: Remote peer vanished with error: Underlying GIOStream returned 0 bytes on an async read (g-io-error-quark, 0). Exiting.
+extract lats etc.
+generate filenames
+0 of 1721
+1 of 1721
+2 of 1721
+3 of 1721
+g_dbus_connection_real_closed: Remote peer vanished with error: Underlying GIOStream returned 0 bytes on an async read (g-io-error-quark, 0). Exiting.
+extract lats etc.
+generate filenames
+0 of 1721
+1 of 1721
+2 of 1721
+3 of 1721
+4 of 1721
+5 of 1721
+g_dbus_connection_real_closed: Remote peer vanished with error: Underlying GIOStream returned 0 bytes on an async read (g-io-error-quark, 0). Exiting.
+extract lats etc.
+generate filenames
+0 of 1721
+1 of 1721
+2 of 1721
+3 of 1721
+4 of 1721
+5 of 1721
+g_dbus_connection_real_closed: Remote peer vanished with error: Underlying GIOStream returned 0 bytes on an async read (g-io-error-quark, 0). Exiting.
+extract lats etc.
+generate filenames
+0 of 1721
+1 of 1721
+2 of 1721
+3 of 1721
+4 of 1721
+5 of 1721
+6 of 1721
+7 of 1721
+8 of 1721
+9 of 1721
+10 of 1721
+11 of 1721
+12 of 1721
+13 of 1721
+14 of 1721
+15 of 1721
+16 of 1721
+17 of 1721
+18 of 1721
+19 of 1721
+20 of 1721
+21 of 1721
+22 of 1721
+23 of 1721
+24 of 1721
+25 of 1721
+26 of 1721
+27 of 1721
+28 of 1721
+29 of 1721
+30 of 1721
+31 of 1721
+32 of 1721
+33 of 1721
+34 of 1721
+35 of 1721
+36 of 1721
+37 of 1721
+g_dbus_connection_real_closed: Remote peer vanished with error: Underlying GIOStream returned 0 bytes on an async read (g-io-error-quark, 0). Exiting.
+/usr/local/lib/python2.7/dist-packages/Iris-1.6.0_dev-py2.7-linux-x86_64.egg/iris/fileformats/_pyke_rules/compiled_krb/fc_rules_cf_fc.py:1280: UserWarning: Failed to create 'time' dimension coordinate: The points array must be strictly monotonic.
+Gracefully creating 'time' auxiliary coordinate instead.
+  error=e_msg))
+/usr/local/lib/python2.7/dist-packages/Iris-1.6.0_dev-py2.7-linux-x86_64.egg/iris/analysis/cartography.py:315: UserWarning: Using DEFAULT_SPHERICAL_EARTH_RADIUS.
+  warnings.warn("Using DEFAULT_SPHERICAL_EARTH_RADIUS.")
+
+** (atlantic_animation.py:8361): WARNING **: Command line `dbus-launch --autolaunch=0bd93950e7650515f2a278f00000000b --binary-syntax --close-stderr' exited with non-zero exit status 1: Autolaunch error: X11 initialization failed.\n
+/usr/lib/python2.7/dist-packages/gtk-2.0/gtk/__init__.py:57: GtkWarning: could not open display
+  warnings.warn(str(e), _gtk.Warning)
+/usr/local/lib/python2.7/dist-packages/matplotlib/backends/backend_gtk.py:58: GtkWarning: IA__gdk_cursor_new_for_display: assertion `GDK_IS_DISPLAY (display)' failed
+  cursors.MOVE          : gdk.Cursor(gdk.FLEUR),
+Traceback (most recent call last):
+  File "atlantic_animation.py", line 3, in <module>
+    import matplotlib.pyplot as plt
+  File "/usr/local/lib/python2.7/dist-packages/matplotlib/pyplot.py", line 97, in <module>
+    _backend_mod, new_figure_manager, draw_if_interactive, _show = pylab_setup()
+  File "/usr/local/lib/python2.7/dist-packages/matplotlib/backends/__init__.py", line 25, in pylab_setup
+    globals(),locals(),[backend_name])
+  File "/usr/local/lib/python2.7/dist-packages/matplotlib/backends/backend_gtkagg.py", line 10, in <module>
+    from matplotlib.backends.backend_gtk import gtk, FigureManagerGTK, FigureCanvasGTK,\
+  File "/usr/local/lib/python2.7/dist-packages/matplotlib/backends/backend_gtk.py", line 58, in <module>
+    cursors.MOVE          : gdk.Cursor(gdk.FLEUR),
+RuntimeError: could not create GdkCursor object
+generate filenames
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+160
+161
+162
+163
+164
+165
+166
+167
+168
+169
+170
+171
+172
+173
+174
+175
+176
+177
+178
+179
+180
+181
+182
+183
+184
+185
+186
+187
+188
+g_dbus_connection_real_closed: Remote peer vanished with error: Underlying GIOStream returned 0 bytes on an async read (g-io-error-quark, 0). Exiting.
+
+** (atlantic_animation.py:9451): WARNING **: Command line `dbus-launch --autolaunch=0bd93950e7650515f2a278f00000000b --binary-syntax --close-stderr' exited with non-zero exit status 1: Autolaunch error: X11 initialization failed.\n
+/usr/lib/python2.7/dist-packages/gtk-2.0/gtk/__init__.py:57: GtkWarning: could not open display
+  warnings.warn(str(e), _gtk.Warning)
+/usr/local/lib/python2.7/dist-packages/matplotlib/backends/backend_gtk.py:58: GtkWarning: IA__gdk_cursor_new_for_display: assertion `GDK_IS_DISPLAY (display)' failed
+  cursors.MOVE          : gdk.Cursor(gdk.FLEUR),
+Traceback (most recent call last):
+  File "atlantic_animation.py", line 3, in <module>
+    import matplotlib.pyplot as plt
+  File "/usr/local/lib/python2.7/dist-packages/matplotlib/pyplot.py", line 97, in <module>
+    _backend_mod, new_figure_manager, draw_if_interactive, _show = pylab_setup()
+  File "/usr/local/lib/python2.7/dist-packages/matplotlib/backends/__init__.py", line 25, in pylab_setup
+    globals(),locals(),[backend_name])
+  File "/usr/local/lib/python2.7/dist-packages/matplotlib/backends/backend_gtkagg.py", line 10, in <module>
+    from matplotlib.backends.backend_gtk import gtk, FigureManagerGTK, FigureCanvasGTK,\
+  File "/usr/local/lib/python2.7/dist-packages/matplotlib/backends/backend_gtk.py", line 58, in <module>
+    cursors.MOVE          : gdk.Cursor(gdk.FLEUR),
+RuntimeError: could not create GdkCursor object

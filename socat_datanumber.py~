@@ -1,0 +1,4 @@
+import iris
+import matplotlib.pyplot as plt
+
+cube = iris.load('/home/ph290/data1/observations/SOCAT_tracks_gridded_monthly_v2.nc')

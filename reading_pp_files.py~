@@ -1,0 +1,7 @@
+def my_callback(cube, field, filename):
+    if field.lbuser[3] != 16203:
+        raise iris.exceptions.IgnoreCubeException()
+
+filename='/project/obgc/qump/aldpp/*.pp'
+temp_cubes = iris.load(filename, callback=my_callback)
+

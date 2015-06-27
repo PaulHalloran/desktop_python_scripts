@@ -1,0 +1,63 @@
+import iris
+import cartopy.crs as ccrs
+import matplotlib.pyplot as plt
+import iris.coord_categorisation
+import iris.analysis.cartography
+import iris.analysis
+import scipy
+from scipy import signal
+import numpy as np
+import cartopy
+
+file = '/data/data1/ph290/observations/hadisst/HadISST_sst.nc'
+cube = iris.load(file)
+cube = cube[0]
+iris.coord_categorisation.add_year(cube, 'time', name='year')
+iris.coord_categorisation.add_month(cube, 'time', name='month')
+cube2 = cube.aggregated_by('month', iris.analysis.MEAN)
+
+months = np.array(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'])
+
+cube3 = cube.data.copy()
+cube4 = cube.copy()
+for i in range(cube.shape[0]):
+	month_tmp = cube[i].coord('month').points[0]
+	loc = np.where(months == month_tmp)[0][0]
+	cube3[i,:,:] -= cube2[loc].data
+
+cube4.data = cube3
+	
+
+coord = cube.coord('time')
+year = np.array([coord.units.num2date(value).year for value in coord.points])
+month = np.array([coord.units.num2date(value).month for value in coord.points])
+
+
+
+import iris.quickplot as qplt
+
+mpl.rcParams['figure.figsize'] = 10, 5
+mpl.rcParams['axes.labelsize'] = 20
+mpl.rcParams['axes.labelsize'] = 20
+
+
+
+data = area_avged_region_detrended.data
+coord = area_avged_region_detrended.coord('time')
+dt = coord.units.num2date(coord.points)
+year = np.array([coord.units.num2date(value).year for value in coord.points])
+month  = np.array([coord.units.num2date(value).month for value in coord.points])
+
+# fig, (ax)  = plt.subplots(nrows=1)
+# ax.plot(year+month/12,data,'r',linewidth = 3)
+# ax.set_xlabel('year')
+# ax.set_ylabel('ENSO box SST anomaly ($^o$C)')
+# ax.set_xlim(1995,2000) 
+# set_foregroundcolor(ax, 'black')
+# set_backgroundcolor(ax, 'white')
+# ax.tick_params(axis='both', which='major', labelsize=20)
+# ax.tick_params(axis='both', which='minor', labelsize=20)
+# mpl.pyplot.locator_params(nbins=4)
+# plt.tight_layout()
+# plt.show()                      
+# # plt.savefig('/home/ph290/Documents/figures/enso_ts.png', transparent=True,dpi = 500)

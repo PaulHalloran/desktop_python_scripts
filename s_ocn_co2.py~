@@ -1,0 +1,14 @@
+import iris
+import glob
+
+files = glob.glob('/home/ph290/data0/cmip5_data/regridded/fgco2*.nc')
+
+cubes = []
+
+for file in files:
+    cube = iris.load_cube(file)
+    cube = cube.collapsed('time')
+    cubes.append(cube)
+
+
+

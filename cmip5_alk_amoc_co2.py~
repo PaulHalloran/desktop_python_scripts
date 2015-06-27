@@ -1,0 +1,9 @@
+import numpy as np
+import iris
+import matplotlib.pyplot as plt
+
+amoc_dir = '/home/ph290/data0/cmip5_data/msftmyz/piControl/.'
+talk_dir = '/data/data0/ph290/cmip5_data/talk/'
+fgco2_dir = '/data/data0/ph290/cmip5_data/picontrol/fgco2/'
+
+model = 'NorESM1-ME'

@@ -1,0 +1,6 @@
+import numpy as np
+import glob
+
+directory = '/home/ph290/data1/qump_out_python/annual_means/'
+
+t_file = glob.glob(directory+'*102.txt')

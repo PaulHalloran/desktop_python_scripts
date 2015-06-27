@@ -1,0 +1,14 @@
+import iris
+import glob
+import numpy as np
+
+directory = '/home/ph290/data0/cmip5_data/regridded'
+
+files = glob.glob(directory+'/fgco2_*_regridded.nc')
+
+models = []
+for file in files:
+    models.append(file.split('/')[-1].split('_')[1])
+
+models = np.unique(np.array(models))
+

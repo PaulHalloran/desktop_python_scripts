@@ -1,0 +1,4 @@
+Help on method subset in module iris.cube:
+
+ssuubbsseett(self, coord) method of iris.cube.Cube instance
+    Get a subset of the cube by providing the desired resultant coordinate.

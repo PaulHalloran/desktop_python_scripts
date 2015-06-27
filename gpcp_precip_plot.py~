@@ -1,0 +1,11 @@
+import iris
+import matplotlib.pyplot as plt
+import iris.quickplot as qplt
+
+x = iris.load_cube('precip.mon.mean.nc')
+x2 = x.collapsed('time',iris.analysis.MEAN)
+
+qplt.contourf(x2,50)
+plt.gca().coastlines()
+plt.show()
+

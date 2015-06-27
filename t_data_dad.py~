@@ -1,0 +1,42 @@
+import numpy as np
+import iris
+import iris.analysis.cartography
+import iris.analysis
+import matplotlib.pyplot as plt
+import iris.quickplot as qplt
+
+def process_data(file,output_name):
+    cube=iris.load_cube(file)
+    cube.standard_name='sea_surface_temperature'
+    #
+    extract_area = iris.Constraint(longitude=lambda v: -6 <= v <= 1.5,latitude=lambda v: 50 <= v <= 53,name='sea_surface_temperature')
+    #
+    extracted_cube = cube.extract(extract_area)
+    extracted_cube.coord('latitude').guess_bounds()
+    extracted_cube.coord('longitude').guess_bounds()
+    grid_areas = iris.analysis.cartography.area_weights(extracted_cube)
+    #
+    mean = extracted_cube.collapsed(['longitude', 'latitude'], iris.analysis.MEAN, weights=grid_areas)
+    #
+    coord = cube.coord('time')
+    dt = coord.units.num2date(coord.points)
+    #
+    #plt.plot(dt,mean.data)
+    #
+    yr=[]
+    mn=[]
+    dy=[]
+    for i in range(mean.data.size):
+        yr.append(dt[i].year)
+        mn.append(dt[i].month)
+        dy.append(dt[i].day)
+    #
+    np.savetxt(output_name, np.vstack((yr,mn,dy,mean.data)).T, delimiter=',')
+
+
+file_min='/project/decadal/hadre/HadGHCND_Ex/actual/HadGHCND_TN_acts_50-11_feb12.pp'
+file_max='/project/decadal/hadre/HadGHCND_Ex/actual/HadGHCND_TX_acts_50-11_feb12.pp'
+
+process_data(file_min,'/data/local/hador/t_min.txt')
+process_data(file_max,'/data/local/hador/t_max.txt')
+

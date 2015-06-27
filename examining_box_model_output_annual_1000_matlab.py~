@@ -1,0 +1,267 @@
+import numpy as np
+import glob
+import matplotlib.pyplot as plt
+import matplotlib
+import scipy
+import scipy.signal as signal
+from scipy.signal import kaiserord, lfilter, firwin, freqz
+import matplotlib.mlab as ml
+from scipy.interpolate import griddata
+
+def rmse(ts1,ts2):
+    #ts1 = predicted value
+    #ts2 = true value
+    arraysize=np.size(ts1)
+    diff_sq=np.square(ts1-ts2)
+    mse=np.sum(diff_sq)*(1.0/arraysize)
+    return np.sqrt(mse)
+
+array_size=239
+
+source="/Users/ph290/Public/n_atl_data/results/order_runs_processed_in_box_model.txt"
+inp = open(source,"r")
+count=0
+for line in inp:
+    count +=1
+
+'''
+Read in subpolar gyre co2 flux data from QUMP
+'''
+
+run_names_order=str.split(line,' ')
+run_names_order=run_names_order[0:-1]
+
+input_year=np.zeros(array_size)
+qump_co2_flux=np.zeros(array_size)
+
+
+dir_name2='/Users/ph290/Public/mo_data/qump_out_python/annual_means/'
+no_filenames=glob.glob(dir_name2+'*30249.txt')
+filenames2=glob.glob(dir_name2+'*'+run_names_order[0]+'*30249.txt')
+
+qump_year=np.zeros(array_size)
+qump_co2_flux=np.zeros((array_size,np.size(no_filenames)))
+
+input2=np.genfromtxt(filenames2[0], delimiter=",")
+qump_year=input2[:,0]
+
+for i in range(np.size(no_filenames)):
+    filenames2=glob.glob(dir_name2+'*'+run_names_order[i]+'*30249.txt')
+    input2=np.genfromtxt(filenames2[0], delimiter=",")
+    if input2[:,1].size == array_size:
+        qump_co2_flux[:,i]=input2[:,1]
+
+'''
+Read in data from box model
+'''
+dir_name='/Users/ph290/Public/n_atl_data/results/'
+filenames=glob.glob(dir_name+'box_model*.csv')
+input1=np.genfromtxt(filenames[0], delimiter=",")
+box_co2_flux=np.zeros((array_size,np.size(no_filenames),np.size(filenames)))
+box_years=input1[:,0]
+
+file_order=np.empty(np.size(filenames))
+for i in range(np.size(filenames)):
+    tmp=filenames[i].split('_')
+    tmp2=tmp[6].split('.')
+    file_order[i]=np.int(tmp2[0])
+
+
+for i in range(np.size(filenames)):
+    loc=np.where(file_order == i+1)
+    #print 'reading box model file '+str(i)
+    input1=np.genfromtxt(filenames[loc[0]], delimiter=",")
+    box_co2_flux[:,:,i]=input1[:,1:np.size(no_filenames)+1]
+
+'''
+Analysis and low/high-pass filtering
+'''
+
+N=5.0
+#I think N is the order of the filter - i.e. quadratic
+timestep_between_values=1.0 #years valkue should be '1.0/12.0'
+low_cutoff=20.0 #years: 1 for filtering at 1 yr. 5 for filtering at 5 years
+high_cutoff=1.0 #years: 1 for filtering at 1 yr. 5 for filtering at 5 years
+middle_cuttoff_low=1.0
+middle_cuttoff_high=5.0
+
+Wn_low=timestep_between_values/low_cutoff
+Wn_high=timestep_between_values/high_cutoff
+Wn_mid_low=timestep_between_values/middle_cuttoff_low
+Wn_mid_high=timestep_between_values/middle_cuttoff_high
+
+
+def analysis():
+    for exp_counter in range(np.size(no_filenames)):
+        print exp_counter
+        f, axarr = plt.subplots(3, sharex=True)
+        #unfiltered data
+        for prm_cnt2 in range(np.size(param_set_counter)):
+            axarr[0].plot(qump_year, qump_co2_flux[:,exp_counter],'k')
+            axarr[0].plot(qump_year, (box_co2_flux[:,exp_counter,param_set_counter[prm_cnt2]]/1.12e13)*1.0e15/12.0)
+            axarr[0].set_title('unfiltered annual data')
+            # low-pass
+        for prm_cnt2 in range(np.size(param_set_counter)):
+            #design a butterworth filter - or of want can replace butter with bessel
+            b, a = scipy.signal.butter(N, Wn_low, btype='low')
+            qump_low_pass = scipy.signal.filtfilt(b, a, qump_co2_flux[:,exp_counter])
+            box_low_pass = scipy.signal.filtfilt(b, a,(box_co2_flux[:,exp_counter,param_set_counter[prm_cnt2]]/1.12e13)*1.0e15/12.0)
+            axarr[1].plot(qump_year[round((low_cutoff)/2.0):-round((low_cutoff)/2.0)], qump_low_pass[round((low_cutoff)/2.0):-round((low_cutoff)/2.0)],'k')
+            axarr[1].plot(qump_year[round((low_cutoff)/2.0):-round((low_cutoff)/2.0)], box_low_pass[round((low_cutoff)/2.0):-round((low_cutoff)/2.0)])
+            axarr[1].set_title('low-pass > '+str(low_cutoff)+'yrs')
+        # band-pass
+        for prm_cnt2 in range(np.size(param_set_counter)):
+            b1, a1 = scipy.signal.butter(N, Wn_mid_low, btype='low')
+            b2, a2 = scipy.signal.butter(N, Wn_mid_high, btype='high')
+            qump_middle_tmp=scipy.signal.filtfilt(b1, a1, qump_co2_flux[:,exp_counter])
+            qump_middle=scipy.signal.filtfilt(b2, a2, qump_middle_tmp)
+            box_middle_tmp=scipy.signal.filtfilt(b1, a1, (box_co2_flux[:,exp_counter,param_set_counter[prm_cnt2]]/1.12e13)*1.0e15/12.0)
+            box_middle=scipy.signal.filtfilt(b2, a2, box_middle_tmp)
+            axarr[2].plot(qump_year[round((middle_cuttoff_low)/2.0):-round((middle_cuttoff_low)/2.0)], qump_middle[round((middle_cuttoff_low)/2.0):-round((middle_cuttoff_low)/2.0)],'k')
+            axarr[2].plot(qump_year[round((middle_cuttoff_low)/2.0):-round((middle_cuttoff_low)/2.0)], box_middle[round((middle_cuttoff_low)/2.0):-round((middle_cuttoff_low)/2.0)])
+            axarr[2].set_title('bandpass '+str(middle_cuttoff_high)+' < filter < '+str(middle_cuttoff_low))
+        plt.show()
+        continue
+
+
+
+'''
+works out the eman RMSE from each parameter set across each exteriment for both the band-pass (~interannual variability) and low-pass (centenial variability), meaned together
+'''
+
+mean_rmse = np.zeros(np.size(filenames))
+
+b, a = scipy.signal.butter(N, Wn_low, btype='low')
+b1, a1 = scipy.signal.butter(N, Wn_mid_low, btype='low')
+b2, a2 = scipy.signal.butter(N, Wn_mid_high, btype='high')
+
+for param_set_counter in range(np.size(filenames)):
+    rmse_tmp=np.empty(np.size(no_filenames))
+    rmse_tmp.fill(np.nan)
+    rmse_tmp2=np.empty(np.size(no_filenames))
+    rmse_tmp2.fill(np.nan)
+    #
+    rmse_tmp3=np.empty(np.size(no_filenames))
+    rmse_tmp3.fill(np.nan)
+    for exp_counter in range(np.size(no_filenames)):
+        #qump_low_pass = scipy.signal.filtfilt(b, a, qump_co2_flux[:,exp_counter])
+        #box_low_pass = scipy.signal.filtfilt(b, a,(box_co2_flux[:,exp_counter,param_set_counter]/1.12e13)*1.0e15/12.0)
+        #rmse_tmp[exp_counter]=rmse(box_low_pass[round((low_cutoff)/2.0):-round((low_cutoff)/2.0)],qump_low_pass[round((low_cutoff)/2.0):-round((low_cutoff)/2.0)])
+        qump = qump_co2_flux[:,exp_counter]
+        box = (box_co2_flux[:,exp_counter,param_set_counter]/1.12e13)*1.0e15/12.0
+        rmse_tmp[exp_counter]=rmse(box,qump)
+        #qump_middle_tmp=scipy.signal.filtfilt(b1, a1, qump_co2_flux[:,exp_counter])
+        #qump_middle=scipy.signal.filtfilt(b2, a2, qump_middle_tmp)
+        #box_middle_tmp=scipy.signal.filtfilt(b1, a1, (box_co2_flux[:,exp_counter,param_set_counter]/1.12e13)*1.0e15/12.0)
+        #box_middle=scipy.signal.filtfilt(b2, a2, box_middle_tmp)
+        #rmse_tmp2[exp_counter]=rmse(box_middle[round((middle_cuttoff_low)/2.0):-round((middle_cuttoff_low)/2.0)],qump_middle[round((middle_cuttoff_low)/2.0):-round((middle_cuttoff_low)/2.0)])
+        # using this to add an extra contrain on variability towards the end of the century - prob remove.
+        #rmse_tmp3[exp_counter]=rmse(box_middle[150:-round((middle_cuttoff_low)/2.0)],qump_middle[150:-round((middle_cuttoff_low)/2.0)])
+    rmse_tmp_masked = np.ma.masked_array(rmse_tmp,np.isnan(rmse_tmp))
+    #rmse_tmp2_masked = np.ma.masked_array(rmse_tmp2,np.isnan(rmse_tmp2))
+    #
+    #rmse_tmp3_masked = np.ma.masked_array(rmse_tmp3,np.isnan(rmse_tmp3)) 
+    mean_rmse[param_set_counter]=np.mean(rmse_tmp_masked)
+    #+rmse_tmp2_masked+rmse_tmp3_masked)
+    
+
+min_rmse=np.min(mean_rmse)
+mean_rmse_sorted=np.sort(mean_rmse)
+print np.where(mean_rmse == mean_rmse_sorted[0])
+#0.71576047314738001
+#597
+print np.where(mean_rmse == mean_rmse_sorted[1])
+#0.73183082044183656
+#793
+print np.where(mean_rmse == mean_rmse_sorted[2])
+#0.74770172772734489
+
+
+x=np.where(mean_rmse == mean_rmse_sorted[0])
+y=np.where(mean_rmse == mean_rmse_sorted[1])
+z=np.where(mean_rmse == mean_rmse_sorted[2])
+param_set_counter=[x[0][0],y[0][0],z[0][0]]
+
+#analysis()
+
+
+
+exp_counter=1
+f, axarr = plt.subplots(3, sharex=True,sharey=True)
+
+for exp_counter in range(3):
+    for param_set_counter in range(np.size(filenames)):
+        axarr[exp_counter].plot(qump_year, qump_co2_flux[:,exp_counter],'k')
+        axarr[exp_counter].plot(qump_year, (box_co2_flux[:,exp_counter,param_set_counter]/1.12e13)*1.0e15/12.0)
+
+plt.ylim(-1,50)
+
+plt.show()
+  
+'''
+produce contour plot of parameter space
+'''
+
+param_file='/Users/ph290/Public/mo_data/hador_files/projects/data/piston_hypercube_7param_1000exp_wide_2013b.csv'
+input_param=np.genfromtxt(param_file, delimiter=",")
+params=input_param[:,[0,1,2,4,5,6,7]]
+param_names=['piston (Sp)','piston (S)','piston (Eq)','alpha','mixing','box3/box4 vol fract','fract to bx1 v. bx2 from bx 4']
+
+params[:,5]=params[:,5]/1.0e16
+params[:,6]=params[:,6]/1.0e16
+
+tmp=params.shape
+
+z=mean_rmse
+loc=np.where((np.isfinite(z)) & ( z < 3))
+z2=z[loc]
+
+levels=np.linspace(0.7,3,50)
+
+font = {'family' : 'normal',
+        'weight' : 'normal',
+        'size'   : 6}
+
+matplotlib.rc('font', **font)
+
+fig, axs = plt.subplots(tmp[1],tmp[1])
+plt.tight_layout(pad=0.2, w_pad=1.5, h_pad=1.5)
+for x_count in range(tmp[1]):
+    for y_count in range(tmp[1]):
+        print x_count,y_count
+        x=params[loc,x_count][0]
+        y=params[loc,y_count][0]  
+        if x_count > y_count:
+            grid_x, grid_y = np.mgrid[np.min(x):np.max(x):np.complex(np.size(x)), np.min(y):np.max(y):np.complex(np.size(y))]
+            points=np.array([x,y]).T
+            values = z2
+            zi = griddata(points, values, (grid_x, grid_y), method='nearest')
+            c = axs[x_count,y_count].contourf(grid_x,grid_y,zi,levels=levels)
+            axs[x_count,y_count].set_ylabel(param_names[y_count])
+            axs[x_count,y_count].set_xlabel(param_names[x_count])
+
+fig.subplots_adjust(right=0.8)
+fig.subplots_adjust(top=0.9)
+fig.subplots_adjust(bottom=0.1)
+fig.subplots_adjust(left=0.1)
+cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+fig.colorbar(c, cax=cbar_ax)
+plt.show()
+#plt.savefig('/data/local/hador/fig.ps')
+
+
+params
+x=np.where(mean_rmse == mean_rmse_sorted[0])
+y=np.where(mean_rmse == mean_rmse_sorted[1])
+z=np.where(mean_rmse == mean_rmse_sorted[2])
+param_set_counter=[x[0][0],y[0][0],z[0][0]]
+params[x[0][0],:]
+
+
+# fig, axs = plt.subplots(tmp[1])
+# plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
+# for x_count in range(tmp[1]):
+#     axs[x_count].scatter(params[:,x_count],z)
+#     axs[x_count].set_ylim(0,100)
+
+# plt.show()

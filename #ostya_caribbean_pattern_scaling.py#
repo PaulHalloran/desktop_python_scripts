@@ -1,0 +1,49 @@
+import iris
+import numpy as np
+import matplotlib.pyplot as plt
+import iris.analysis
+import iris.coord_categorisation
+import iris.analysis.stats
+
+file = '/home/ph290/data1/observations/ostia/METOFFICE-GLO-SST-L4-RAN-OBS-SST-SEAS_1415982499195.nc'
+
+cube = iris.load_cube(file,'sea_surface_temperature')
+
+lon_west = 260
+lon_east = 320
+lat_south = 0
+lat_north = 40.0 
+
+cube_region_tmp = cube.intersection(longitude=(lon_west, lon_east))
+cube_caribbean = cube_region_tmp.intersection(latitude=(lat_south, lat_north))
+iris.coord_categorisation.add_year(cube_caribbean, 'time', name='year')
+cube_caribbean = cube_caribbean.aggregated_by('year', iris.analysis.MEAN)
+
+lon_west = 320
+lon_east = 380
+lat_south = -40
+lat_north = 40.0 
+
+cube_region_tmp = cube.intersection(longitude=(lon_west, lon_east))
+cube_trop_atl = cube_region_tmp.intersection(latitude=(lat_south, lat_north))
+cube_trop_atl.coord('latitude').guess_bounds()
+cube_trop_atl.coord('longitude').guess_bounds()
+iris.coord_categorisation.add_year(cube_trop_atl, 'time', name='year')
+cube_trop_atl = cube_trop_atl.aggregated_by('year', iris.analysis.MEAN)
+
+cube_trop_atl_mean = cube_trop_atl.collapsed(['latitude','longitude'],iris.analysis.MEAN)
+
+plt.plot(cube_trop_atl_mean.data)
+plt.show()
+
+tmp_cube = cube_caribbean.copy()
+data = tmp_cube.data.copy()
+
+size = np.shape(data.data)
+
+for i in range(size[0]):
+    data.data[i] = data.data[i] * 0.0 + cube_trop_atl_mean.data[i]
+
+tmp_cube.data = data
+
+out_cube = iris.analysis.stats.pearsonr(cube_caribbean, tmp_cube, corr_coords=['latitude','longitude'])

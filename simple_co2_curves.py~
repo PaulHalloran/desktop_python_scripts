@@ -1,0 +1,18 @@
+'''
+4th?? order polynomial to rcp 85 - play with to come up with my idealised scenarios
+'''
+import numpy as np
+
+directory = '/home/ph290/box_modelling/boxmodel_6_box_back_to_basics/forcing_data/co2/'
+data = np.genfromtxt(directory+'historical_and_rcp85_atm_co2.txt',delimiter=',')
+loc = np.where((1860 <= data[:,0]) & (data[:,0] <= 2100))
+data = data[loc,:]
+data=data[0]
+z = np.polyfit(data[:,0], data[:,1], 4)
+polynomial = np.poly1d(z)
+ys = polynomial(data[:,0])
+
+plt.plot(data[:,0],data[:,1])
+plt.plot(data[:,0],ys)
+plt.show()
+

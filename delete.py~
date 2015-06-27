@@ -1,0 +1,29 @@
+if not cube.coord('latitude').has_bounds():
+    cube.coord('latitude').guess_bounds()
+
+if not cube.coord('longitude').has_bounds():
+    cube.coord('longitude').guess_bounds()
+
+grid_areas = iris.analysis.cartography.area_weights(cube)
+basin_mask_tmp = basin_mask[0][0]
+
+if i == 0:
+    #global case
+    loc1 = np.where(np.logical_not(basin_mask_tmp.data >= 1))
+    loc2 = np.where(basin_mask_tmp.data >= 1)
+else:
+    #all other cases
+    loc1 = np.where(np.logical_not(basin_mask_tmp.data == i))
+    loc2 = np.where(basin_mask_tmp.data == i)
+
+basin_mask_tmp.data[loc1] = np.nan
+basin_mask_tmp.data[loc2] = 1.0
+basin_mask_flipped = basin_mask_tmp
+#basin_mask_flipped.data = iris.analysis.maths.np.flipud(basin_mask_tmp.data)
+cube_tmp = cube
+cube_tmp = iris.analysis.maths.multiply(cube,basin_mask_flipped)
+qplt.contourf(cube_tmp[0])
+plt.gca().coastlines()
+plt.show()
+
+

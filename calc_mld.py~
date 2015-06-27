@@ -1,0 +1,19 @@
+import iris
+import numpy as np
+import matplotlib,pyplot as plt
+import glob
+
+files = glob.glob('/data/temp/ph290/andy_w_analysis/processed/*_thetao_*.nc')
+
+file = files[0]
+cube = iris.load_cube(file)
+
+cube2 = cube.copy()
+
+surface = cube.extract(iris.Constraint(depth = 0))
+
+cube2.data = np.tile(surfacenp.size(cube.coord('depth').points)
+
+
+for cube_slice in cube.slices('depth'):
+    print cube_slice - surface

@@ -1,0 +1,3 @@
+import numpy as np
+
+dir='/net/project/obgc/boxmodel_testing_less_boxes_4_monthly/results/'

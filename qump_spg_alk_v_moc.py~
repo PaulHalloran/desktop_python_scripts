@@ -1,0 +1,38 @@
+import numpy as np
+
+
+'''
+Read in QUMP data
+'''
+
+run_names_order=str.split(line,' ')
+run_names_order=run_names_order[0:-1]
+
+input_year=np.zeros(array_size)
+qump_co2_flux=np.zeros(array_size)
+
+model_vars=['stash_101','stash_102','stash_103','stash_104','stash_200','stash_30249','moc_stm_fun']
+
+
+dir_name2='/home/ph290/data1/qump_out_python/annual_means/'
+no_filenames=glob.glob(dir_name2+'*30249.txt')
+filenames2=glob.glob(dir_name2+'*'+run_names_order[0]+'*'+model_vars[0]+'.txt')
+
+input2=np.genfromtxt(filenames2[0], delimiter=",")
+no_time_series=input2[0,:].size-1
+
+qump_year=np.zeros(array_size)
+qump_data=np.zeros((np.size(model_vars),no_time_series,array_size,np.size(no_filenames)))
+
+input2=np.genfromtxt(filenames2[0], delimiter=",")
+qump_year=input2[:,0]
+
+for k,model_var_cnt in enumerate(model_vars):
+	for i in range(np.size(no_filenames)):
+		filenames2=glob.glob(dir_name2+'*'+run_names_order[i]+'*'+model_var_cnt+'.txt')
+		input2=np.genfromtxt(filenames2[0], delimiter=",")
+		no_time_series=input2[0,:].size-1
+		if input2[:,1].size == array_size:
+			for j in range(no_time_series):
+				qump_data[k,j,:,i]=input2[:,j+1]
+                                #variable,ens. member,year,

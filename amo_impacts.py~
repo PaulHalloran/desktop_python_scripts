@@ -1,0 +1,60 @@
+import time
+import numpy as np
+import glob
+import iris
+import iris.coord_categorisation
+import iris.analysis
+import subprocess
+import os
+import iris.quickplot as qplt
+import matplotlib.pyplot as plt
+import numpy.ma as ma
+import running_mean
+from scipy import signal
+
+
+'''
+Firstly working out which ar ethe high and low AMO years
+'''
+
+hadisst_file = '/home/ph290/data1/observations/hadisst/HadISST_sst.nc'
+
+hadisst = iris.load_cube(hadisst_file)
+
+iris.coord_categorisation.add_year(hadisst, 'time', name='year')
+hadisst_annual = hadisst.aggregated_by('year', iris.analysis.MEAN)
+
+lon_west = -75.0
+lon_east = -7.5
+lat_south = 0.0
+lat_north = 60.0
+
+region = iris.Constraint(longitude=lambda v: lon_west <= v <= lon_east,latitude=lambda v: lat_south <= v <= lat_north)
+hadisst_annual_region = hadisst_annual.extract(region)
+
+
+hadisst_annual_region.coord('latitude').guess_bounds()
+hadisst_annual_region.coord('longitude').guess_bounds()
+grid_areas = iris.analysis.cartography.area_weights(hadisst_annual_region)
+hadisst_annual_region_ts = hadisst_annual_region.collapsed(['longitude', 'latitude'], iris.analysis.MEAN, weights=grid_areas)
+
+coord = hadisst_annual.coord('time')
+dt = coord.units.num2date(coord.points)
+hadisst_year = np.array([coord.units.num2date(value).year for value in coord.points])
+
+hadisst_annual_region_ts_detrend = signal.detrend(hadisst_annual_region_ts.data)
+
+hadisst_year = hadisst_year[0:-1]
+hadisst_annual_region_ts_detrend = hadisst_annual_region_ts_detrend[0:-1]
+
+high_amo_years = hadisst_year[np.where(hadisst_annual_region_ts_detrend > np.mean(hadisst_annual_region_ts_detrend))]
+loc_amo_years = hadisst_year[np.where(hadisst_annual_region_ts_detrend < np.mean(hadisst_annual_region_ts_detrend))]
+
+'''
+Next reading in 20CR T and precip
+'''
+
+directory = '/data/temp/ph290/reanalysis_20cr/'
+
+twenty_cr_t = iris.load_cube(directory+'air.2m.mon.mean.nc','air_temperature')
+twenty_cr_p = iris.load_cube(directory+'prate.mon.mean.nc','precipitation_flux')
